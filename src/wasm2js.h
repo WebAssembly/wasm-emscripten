@@ -2153,6 +2153,38 @@ Ref Wasm2JSBuilder::processFunctionBody(Module* m,
                                     visit(curr->value, EXPRESSION_RESULT),
                                     visit(curr->size, EXPRESSION_RESULT));
     }
+    Ref visitTableGet(TableGet* curr) {
+      unimplemented(curr);
+      WASM_UNREACHABLE("unimp");
+    }
+    Ref visitTableSet(TableSet* curr) {
+      unimplemented(curr);
+      WASM_UNREACHABLE("unimp");
+    }
+    Ref visitTableSize(TableSize* curr) {
+      unimplemented(curr);
+      WASM_UNREACHABLE("unimp");
+    }
+    Ref visitTableGrow(TableGrow* curr) {
+      unimplemented(curr);
+      WASM_UNREACHABLE("unimp");
+    }
+    Ref visitTableFill(TableFill* curr) {
+      unimplemented(curr);
+      WASM_UNREACHABLE("unimp");
+    }
+    Ref visitTableCopy(TableCopy* curr) {
+      unimplemented(curr);
+      WASM_UNREACHABLE("unimp");
+    }
+    Ref visitTableInit(TableInit* curr) {
+      unimplemented(curr);
+      WASM_UNREACHABLE("unimp");
+    }
+    Ref visitElemDrop(ElemDrop* curr) {
+      unimplemented(curr);
+      WASM_UNREACHABLE("unimp");
+    }
     Ref visitRefNull(RefNull* curr) {
       unimplemented(curr);
       WASM_UNREACHABLE("unimp");

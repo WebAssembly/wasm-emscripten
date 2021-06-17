@@ -499,6 +499,15 @@ enum ASTNodes {
   MemorySize = 0x3f,
   MemoryGrow = 0x40,
 
+  TableGet = 0x25,
+  TableSet = 0x26,
+  TableSize = 0x10,
+  TableGrow = 0x0f,
+  TableFill = 0x11,
+  TableCopy = 0x0e,
+  TableInit = 0x0c,
+  ElemDrop = 0x0d,
+
   I32Const = 0x41,
   I64Const = 0x42,
   F32Const = 0x43,
@@ -1216,6 +1225,7 @@ public:
 
   uint32_t getFunctionIndex(Name name) const;
   uint32_t getTableIndex(Name name) const;
+  uint32_t getElementSegmentIndex(Name name) const;
   uint32_t getGlobalIndex(Name name) const;
   uint32_t getEventIndex(Name name) const;
   uint32_t getTypeIndex(HeapType type) const;
@@ -1392,8 +1402,12 @@ public:
   // gets a name in the combined import+defined space
   Name getFunctionName(Index index);
   Name getTableName(Index index);
+  Name getElementSegmentName(Index index);
   Name getGlobalName(Index index);
   Name getEventName(Index index);
+
+  Table* getTable(Index index);
+  ElementSegment* getElementSegment(Index index);
 
   void getResizableLimits(Address& initial,
                           Address& max,
@@ -1438,13 +1452,15 @@ public:
   // their names
   std::vector<Table*> tableImports;
   // at index i we have all references to the table i
-  std::map<Index, std::vector<Expression*>> tableRefs;
+  std::map<Index, std::vector<Name*>> tableRefs;
 
   std::map<Index, Name> elemTables;
 
   // we store elems here after being read from binary, until when we know their
   // names
   std::vector<std::unique_ptr<ElementSegment>> elementSegments;
+  // at index i we have all references to the element segment i
+  std::map<Index, std::vector<Expression*>> elemRefs;
 
   // we store globals here before wasm.addGlobal after we know their names
   std::vector<std::unique_ptr<Global>> globals;
@@ -1616,6 +1632,12 @@ public:
   bool maybeVisitSIMDShift(Expression*& out, uint32_t code);
   bool maybeVisitSIMDLoad(Expression*& out, uint32_t code);
   bool maybeVisitSIMDLoadStoreLane(Expression*& out, uint32_t code);
+  bool maybeVisitTableSize(Expression*& out, uint32_t code);
+  bool maybeVisitTableGrow(Expression*& out, uint32_t code);
+  bool maybeVisitTableFill(Expression*& out, uint32_t code);
+  bool maybeVisitTableCopy(Expression*& out, uint32_t code);
+  bool maybeVisitTableInit(Expression*& out, uint32_t code);
+  bool maybeVisitElemDrop(Expression*& out, uint32_t code);
   bool maybeVisitMemoryInit(Expression*& out, uint32_t code);
   bool maybeVisitDataDrop(Expression*& out, uint32_t code);
   bool maybeVisitMemoryCopy(Expression*& out, uint32_t code);
@@ -1637,6 +1659,8 @@ public:
   bool maybeVisitArrayCopy(Expression*& out, uint32_t code);
   void visitSelect(Select* curr, uint8_t code);
   void visitReturn(Return* curr);
+  void visitTableGet(TableGet* curr);
+  void visitTableSet(TableSet* curr);
   void visitMemorySize(MemorySize* curr);
   void visitMemoryGrow(MemoryGrow* curr);
   void visitNop(Nop* curr);

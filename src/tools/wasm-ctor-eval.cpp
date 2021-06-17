@@ -366,9 +366,20 @@ struct CtorEvalExternalInterface : EvallingModuleInstance::ExternalInterface {
   }
 
   // called during initialization, but we don't keep track of a table
-  void tableStore(Name tableName, Address addr, const Literal& value) override {
+  void tableStore(Name tableName, Index addr, const Literal& value) override {}
+  const Literal& tableLoad(Name tableName, Index addr) override {
+    throw FailToEvalException("table load");
   }
-
+  Index growTable(Name tableName, Index delta, Literal initialValue) override {
+    throw FailToEvalException("grow table");
+  }
+  virtual Index tableSize(Name tableName) override {
+    auto* table = wasm->getTableOrNull(tableName);
+    if (!table) {
+      throw FailToEvalException("tableSize on non-existing table");
+    }
+    return table->initial;
+  }
   bool growMemory(Address /*oldSize*/, Address newSize) override {
     throw FailToEvalException("grow memory");
   }

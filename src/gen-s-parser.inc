@@ -166,9 +166,17 @@ switch (op[0]) {
       default: goto parse_error;
     }
   }
-  case 'e':
-    if (strcmp(op, "else") == 0) { return makeThenOrElse(s); }
-    goto parse_error;
+  case 'e': {
+    switch (op[2]) {
+      case 'e':
+        if (strcmp(op, "elem.drop") == 0) { return makeElemDrop(s); }
+        goto parse_error;
+      case 's':
+        if (strcmp(op, "else") == 0) { return makeThenOrElse(s); }
+        goto parse_error;
+      default: goto parse_error;
+    }
+  }
   case 'f': {
     switch (op[1]) {
       case '3': {
@@ -2966,6 +2974,42 @@ switch (op[0]) {
   }
   case 't': {
     switch (op[1]) {
+      case 'a': {
+        switch (op[6]) {
+          case 'c':
+            if (strcmp(op, "table.copy") == 0) { return makeTableCopy(s); }
+            goto parse_error;
+          case 'f':
+            if (strcmp(op, "table.fill") == 0) { return makeTableFill(s); }
+            goto parse_error;
+          case 'g': {
+            switch (op[7]) {
+              case 'e':
+                if (strcmp(op, "table.get") == 0) { return makeTableGet(s); }
+                goto parse_error;
+              case 'r':
+                if (strcmp(op, "table.grow") == 0) { return makeTableGrow(s); }
+                goto parse_error;
+              default: goto parse_error;
+            }
+          }
+          case 'i':
+            if (strcmp(op, "table.init") == 0) { return makeTableInit(s); }
+            goto parse_error;
+          case 's': {
+            switch (op[7]) {
+              case 'e':
+                if (strcmp(op, "table.set") == 0) { return makeTableSet(s); }
+                goto parse_error;
+              case 'i':
+                if (strcmp(op, "table.size") == 0) { return makeTableSize(s); }
+                goto parse_error;
+              default: goto parse_error;
+            }
+          }
+          default: goto parse_error;
+        }
+      }
       case 'h': {
         switch (op[2]) {
           case 'e':

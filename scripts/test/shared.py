@@ -430,7 +430,6 @@ SPEC_TESTS_TO_SKIP = [
     'call_indirect.wast',  # Empty (param) and (result)
     'const.wast',  # Unparenthesized expression
     'data.wast',  # Various unsupported (data) notations
-    'elem.wast',  # Unsupported 'offset' syntax in (elem)
     'exports.wast',  # Multiple inlined exports for a function
     'func.wast',  # Forward named type reference
     'skip-stack-guard-page.wast',  # Hexadecimal style (0x..) in memory offset
@@ -444,6 +443,8 @@ SPEC_TESTS_TO_SKIP = [
     'memory_grow.wast',  # 'assert_return' failure
     'start.wast',  # Assertion failure
     'type.wast',  # 'assertion_invalid' failure
+    'table_get.wast',  # 'ref.extern' is not defined in shell
+    'table_grow.wast',  # 'ref.extern' is not defined in shell
     'unreachable.wast',  # Validation failure
     'unreached-invalid.wast'  # 'assert_invalid' failure
 ]

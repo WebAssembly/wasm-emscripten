@@ -68,6 +68,11 @@ public:
   std::set<Index> localsWritten;
   std::set<Name> globalsRead;
   std::set<Name> globalsWritten;
+  std::set<Name> tablesRead;
+  std::set<Name> tablesWritten;
+  std::set<Name> elementSegmentsRead;
+  std::set<Name> elementSegmentsDropped;
+  // TODO: add dataSegmentsRead & dataSegmentsDropped for bulk memory operations
   bool readsMemory = false;
   bool writesMemory = false;
   // TODO: Type-based alias analysis. For example, writes to Arrays never
@@ -121,6 +126,9 @@ public:
   bool accessesGlobal() const {
     return globalsRead.size() + globalsWritten.size() > 0;
   }
+  bool accessesTable() const {
+    return calls || tablesRead.size() || tablesWritten.size();
+  }
   bool accessesMemory() const { return calls || readsMemory || writesMemory; }
   bool accessesHeap() const { return calls || readsHeap || writesHeap; }
   // Check whether this may transfer control flow to somewhere outside of this
@@ -136,11 +144,14 @@ public:
 
   // Changes something in globally-stored state.
   bool writesGlobalState() const {
-    return globalsWritten.size() || writesMemory || writesHeap || isAtomic ||
-           calls;
+    return globalsWritten.size() || tablesWritten.size() ||
+           elementSegmentsDropped.size() || writesMemory || writesHeap ||
+           isAtomic || calls;
   }
   bool readsGlobalState() const {
-    return globalsRead.size() || readsMemory || readsHeap || isAtomic || calls;
+    return globalsRead.size() || tablesRead.size() ||
+           elementSegmentsRead.size() || readsMemory || readsHeap || isAtomic ||
+           calls;
   }
 
   bool hasSideEffects() const {
@@ -148,8 +159,8 @@ public:
            trap || throws || transfersControlFlow();
   }
   bool hasAnything() const {
-    return hasSideEffects() || accessesLocal() || readsMemory ||
-           accessesGlobal();
+    return hasSideEffects() || accessesLocal() || accessesTable() ||
+           elementSegmentsDropped.size() || readsMemory || accessesGlobal();
   }
 
   // check if we break to anything external from ourselves
@@ -193,8 +204,28 @@ public:
         return true;
       }
     }
+    for (auto table : tablesWritten) {
+      if (other.tablesRead.count(table) || other.tablesWritten.count(table)) {
+        return true;
+      }
+    }
+    for (auto elem : elementSegmentsDropped) {
+      if (other.elementSegmentsRead.count(elem)) {
+        return true;
+      }
+    }
     for (auto global : globalsRead) {
       if (other.globalsWritten.count(global)) {
+        return true;
+      }
+    }
+    for (auto table : tablesRead) {
+      if (other.tablesWritten.count(table)) {
+        return true;
+      }
+    }
+    for (auto elem : elementSegmentsRead) {
+      if (other.elementSegmentsDropped.count(elem)) {
         return true;
       }
     }
@@ -241,6 +272,18 @@ public:
     }
     for (auto i : other.globalsWritten) {
       globalsWritten.insert(i);
+    }
+    for (auto i : other.tablesRead) {
+      tablesRead.insert(i);
+    }
+    for (auto i : other.tablesWritten) {
+      tablesWritten.insert(i);
+    }
+    for (auto i : other.elementSegmentsRead) {
+      elementSegmentsRead.insert(i);
+    }
+    for (auto i : other.elementSegmentsDropped) {
+      elementSegmentsDropped.insert(i);
     }
     for (auto i : other.breakTargets) {
       breakTargets.insert(i);
@@ -370,6 +413,7 @@ private:
     }
     void visitCallIndirect(CallIndirect* curr) {
       parent.calls = true;
+      parent.tablesRead.insert(curr->table);
       if (parent.features.hasExceptionHandling() && parent.tryDepth == 0) {
         parent.throws = true;
       }
@@ -487,7 +531,8 @@ private:
           parent.implicitTrap = true;
           break;
         }
-        default: {}
+        default: {
+        }
       }
     }
     void visitBinary(Binary* curr) {
@@ -516,7 +561,8 @@ private:
           }
           break;
         }
-        default: {}
+        default: {
+        }
       }
     }
     void visitSelect(Select* curr) {}
@@ -538,6 +584,39 @@ private:
       parent.writesMemory = true;
       // Atomics are also sequentially consistent with memory.grow.
       parent.isAtomic = true;
+    }
+    void visitTableGet(TableGet* curr) {
+      parent.tablesRead.insert(curr->table);
+      parent.implicitTrap = true;
+    }
+    void visitTableSet(TableSet* curr) {
+      parent.tablesWritten.insert(curr->table);
+      parent.implicitTrap = true;
+    }
+    void visitTableSize(TableSize* curr) {
+      parent.tablesRead.insert(curr->table);
+    }
+    void visitTableGrow(TableGrow* curr) {
+      parent.tablesRead.insert(curr->table);
+      parent.tablesWritten.insert(curr->table);
+    }
+    void visitTableFill(TableFill* curr) {
+      parent.tablesWritten.insert(curr->table);
+      parent.implicitTrap = true;
+    }
+    void visitTableCopy(TableCopy* curr) {
+      parent.tablesRead.insert(curr->srcTable);
+      parent.tablesWritten.insert(curr->destTable);
+      parent.implicitTrap = true;
+    }
+    void visitTableInit(TableInit* curr) {
+      parent.tablesWritten.insert(curr->table);
+      parent.elementSegmentsRead.insert(curr->segment);
+      parent.implicitTrap = true;
+    }
+    void visitElemDrop(ElemDrop* curr) {
+      parent.elementSegmentsDropped.insert(curr->segment);
+      parent.implicitTrap = true;
     }
     void visitRefNull(RefNull* curr) {}
     void visitRefIs(RefIs* curr) {}
@@ -658,7 +737,12 @@ public:
     IsAtomic = 1 << 9,
     Throws = 1 << 10,
     DanglingPop = 1 << 11,
-    Any = (1 << 12) - 1
+    ReadsTable = 1 << 12,
+    WritesTable = 1 << 13,
+    ReadsElementSegment = 1 << 14,
+    DropsElementSegment = 1 << 15,
+    // TODO: Add ReadsDataSegment and DropsDataSegment
+    Any = (1 << 16) - 1
   };
   uint32_t getSideEffects() const {
     uint32_t effects = 0;
@@ -679,6 +763,18 @@ public:
     }
     if (globalsWritten.size() > 0) {
       effects |= SideEffects::WritesGlobal;
+    }
+    if (tablesRead.size() > 0) {
+      effects |= SideEffects::ReadsTable;
+    }
+    if (tablesWritten.size() > 0) {
+      effects |= SideEffects::WritesTable;
+    }
+    if (elementSegmentsRead.size() > 0) {
+      effects |= SideEffects::ReadsElementSegment;
+    }
+    if (elementSegmentsDropped.size() > 0) {
+      effects |= SideEffects::DropsElementSegment;
     }
     if (readsMemory) {
       effects |= SideEffects::ReadsMemory;

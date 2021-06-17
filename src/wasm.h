@@ -647,6 +647,14 @@ public:
     ArrayLenId,
     ArrayCopyId,
     RefAsId,
+    TableGetId,
+    TableSetId,
+    TableSizeId,
+    TableGrowId,
+    TableFillId,
+    TableCopyId,
+    TableInitId,
+    ElemDropId,
     NumExpressionIds
   };
   Id _id;
@@ -1205,6 +1213,100 @@ public:
   Type ptrType = Type::i32;
 
   void make64();
+  void finalize();
+};
+
+class TableGet : public SpecificExpression<Expression::TableGetId> {
+public:
+  TableGet(MixedArena& allocator) {}
+
+  Name table;
+  Expression* offset = nullptr;
+
+  void finalize();
+  void finalize(Type type_);
+};
+
+class TableSet : public SpecificExpression<Expression::TableSetId> {
+public:
+  TableSet(MixedArena& allocator) {}
+
+  Name table;
+  Expression* offset = nullptr;
+  Expression* value = nullptr;
+
+  void finalize();
+};
+
+class TableSize : public SpecificExpression<Expression::TableSizeId> {
+public:
+  TableSize() { type = Type::i32; }
+  TableSize(MixedArena& allocator) : TableSize() {}
+
+  Name table;
+
+  void finalize();
+};
+
+class TableGrow : public SpecificExpression<Expression::TableGrowId> {
+public:
+  TableGrow(MixedArena& allocator) {}
+
+  Name table;
+  Expression* delta = nullptr;
+  Expression* initialValue = nullptr;
+
+  void finalize();
+};
+
+class TableFill : public SpecificExpression<Expression::TableFillId> {
+public:
+  TableFill(MixedArena& allocator) {}
+
+  Name table;
+  Expression* dest;
+  Expression* value;
+  Expression* size;
+
+  void finalize();
+};
+
+class TableCopy : public SpecificExpression<Expression::TableCopyId> {
+public:
+  TableCopy(MixedArena& allocator) {}
+
+  Name srcTable;
+  Name destTable;
+
+  Expression* srcOffset = nullptr;
+  Expression* destOffset = nullptr;
+  Expression* size = nullptr;
+
+  void finalize();
+};
+
+class TableInit : public SpecificExpression<Expression::TableInitId> {
+public:
+  TableInit() = default;
+  TableInit(MixedArena& allocator) {}
+
+  Name table;
+  Name segment;
+
+  Expression* srcOffset = nullptr;
+  Expression* destOffset = nullptr;
+  Expression* size = nullptr;
+
+  void finalize();
+};
+
+class ElemDrop : public SpecificExpression<Expression::ElemDropId> {
+public:
+  ElemDrop() = default;
+  ElemDrop(MixedArena& allocator) {}
+
+  Name segment;
+
   void finalize();
 };
 

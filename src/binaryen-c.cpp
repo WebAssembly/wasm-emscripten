@@ -1225,6 +1225,80 @@ BinaryenExpressionRef BinaryenMemoryFill(BinaryenModuleRef module,
                                                     (Expression*)size));
 }
 
+BinaryenExpressionRef BinaryenTableGet(BinaryenModuleRef module,
+                                       const char* table,
+                                       BinaryenExpressionRef offset,
+                                       BinaryenType type) {
+  Type type_(type);
+  // TODO: remove when non-nullable table types are supported.
+  assert(type_.isNullable());
+  return static_cast<Expression*>(
+    Builder(*(Module*)module).makeTableGet(table, (Expression*)offset, type_));
+}
+BinaryenExpressionRef BinaryenTableSet(BinaryenModuleRef module,
+                                       const char* table,
+                                       BinaryenExpressionRef value,
+                                       BinaryenExpressionRef offset) {
+
+  return static_cast<Expression*>(
+    Builder(*(Module*)module)
+      .makeTableSet(table, (Expression*)value, (Expression*)offset));
+}
+BinaryenExpressionRef BinaryenTableSize(BinaryenModuleRef module,
+                                        const char* table) {
+  return static_cast<Expression*>(
+    Builder(*(Module*)module).makeTableSize(table));
+}
+BinaryenExpressionRef BinaryenTableGrow(BinaryenModuleRef module,
+                                        const char* table,
+                                        BinaryenExpressionRef delta,
+                                        BinaryenExpressionRef initialValue) {
+  return static_cast<Expression*>(
+    Builder(*(Module*)module)
+      .makeTableGrow(table, (Expression*)delta, (Expression*)initialValue));
+}
+BinaryenExpressionRef BinaryenTableFill(BinaryenModuleRef module,
+                                        const char* table,
+                                        BinaryenExpressionRef size,
+                                        BinaryenExpressionRef value,
+                                        BinaryenExpressionRef dest) {
+  return static_cast<Expression*>(
+    Builder(*(Module*)module)
+      .makeTableFill(
+        table, (Expression*)size, (Expression*)value, (Expression*)dest));
+}
+BinaryenExpressionRef BinaryenTableCopy(BinaryenModuleRef module,
+                                        const char* srcTable,
+                                        const char* destTable,
+                                        BinaryenExpressionRef size,
+                                        BinaryenExpressionRef srcOffset,
+                                        BinaryenExpressionRef destOffset) {
+  return static_cast<Expression*>(Builder(*(Module*)module)
+                                    .makeTableCopy(srcTable,
+                                                   destTable,
+                                                   (Expression*)size,
+                                                   (Expression*)srcOffset,
+                                                   (Expression*)destOffset));
+}
+BinaryenExpressionRef BinaryenTableInit(BinaryenModuleRef module,
+                                        const char* table,
+                                        const char* segment,
+                                        BinaryenExpressionRef size,
+                                        BinaryenExpressionRef srcOffset,
+                                        BinaryenExpressionRef destOffset) {
+  return static_cast<Expression*>(Builder(*(Module*)module)
+                                    .makeTableInit(table,
+                                                   segment,
+                                                   (Expression*)size,
+                                                   (Expression*)srcOffset,
+                                                   (Expression*)destOffset));
+}
+BinaryenExpressionRef BinaryenElemDrop(BinaryenModuleRef module,
+                                       const char* segment) {
+  return static_cast<Expression*>(
+    Builder(*(Module*)module).makeElemDrop(segment));
+}
+
 BinaryenExpressionRef BinaryenTupleMake(BinaryenModuleRef module,
                                         BinaryenExpressionRef* operands,
                                         BinaryenIndex numOperands) {
@@ -4297,6 +4371,22 @@ BinaryenSideEffects BinaryenSideEffectReadsMemory(void) {
 BinaryenSideEffects BinaryenSideEffectWritesMemory(void) {
   return static_cast<BinaryenSideEffects>(
     EffectAnalyzer::SideEffects::WritesMemory);
+}
+BinaryenSideEffects BinaryenSideEffectReadsTable(void) {
+  return static_cast<BinaryenSideEffects>(
+    EffectAnalyzer::SideEffects::ReadsTable);
+}
+BinaryenSideEffects BinaryenSideEffectWritesTable(void) {
+  return static_cast<BinaryenSideEffects>(
+    EffectAnalyzer::SideEffects::WritesTable);
+}
+BinaryenSideEffects BinaryenSideEffectReadsElementSegment(void) {
+  return static_cast<BinaryenSideEffects>(
+    EffectAnalyzer::SideEffects::ReadsElementSegment);
+}
+BinaryenSideEffects BinaryenSideEffectDropsElementSegment(void) {
+  return static_cast<BinaryenSideEffects>(
+    EffectAnalyzer::SideEffects::DropsElementSegment);
 }
 BinaryenSideEffects BinaryenSideEffectImplicitTrap(void) {
   return static_cast<BinaryenSideEffects>(

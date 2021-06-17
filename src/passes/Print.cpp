@@ -1809,6 +1809,41 @@ struct PrintExpressionContents
   void visitReturn(Return* curr) { printMedium(o, "return"); }
   void visitMemorySize(MemorySize* curr) { printMedium(o, "memory.size"); }
   void visitMemoryGrow(MemoryGrow* curr) { printMedium(o, "memory.grow"); }
+  void visitTableGet(TableGet* curr) {
+    printMedium(o, "table.get ");
+    printName(curr->table, o);
+  }
+  void visitTableSet(TableSet* curr) {
+    printMedium(o, "table.set ");
+    printName(curr->table, o) << ' ';
+  }
+  void visitTableSize(TableSize* curr) {
+    printMedium(o, "table.size ");
+    printName(curr->table, o) << ' ';
+  }
+  void visitTableGrow(TableGrow* curr) {
+    printMedium(o, "table.grow ");
+    printName(curr->table, o) << ' ';
+  }
+  void visitTableFill(TableFill* curr) {
+    printMedium(o, "table.fill ");
+    printName(curr->table, o) << ' ';
+  }
+  void visitTableCopy(TableCopy* curr) {
+    printMedium(o, "table.copy ");
+    printName(curr->destTable, o) << ' ';
+    printName(curr->srcTable, o) << ' ';
+  }
+  void visitTableInit(TableInit* curr) {
+    printMedium(o, "table.init") << ' ';
+    printName(curr->table, o) << ' ';
+    printName(curr->segment, o) << ' ';
+  }
+  void visitElemDrop(ElemDrop* curr) {
+    printMedium(o, "elem.drop ");
+    printName(curr->segment, o);
+  }
+
   void visitRefNull(RefNull* curr) {
     printMedium(o, "ref.null ");
     TypeNamePrinter(o, wasm).print(curr->type.getHeapType());
@@ -2738,13 +2773,8 @@ struct PrintSExpression : public UnifiedExpressionVisitor<PrintSExpression> {
 
     doIndent(o, indent);
     o << '(';
-    printMedium(o, "elem");
-    // If there is no explicit name, and there are multiple segments, use our
-    // internal names to differentiate them.
-    if (curr->hasExplicitName || currModule->elementSegments.size() > 1) {
-      o << ' ';
-      printName(curr->name, o);
-    }
+    printMedium(o, "elem") << ' ';
+    printName(curr->name, o);
 
     if (curr->table.is()) {
       if (!allElementsRefFunc || currModule->tables.size() > 1) {

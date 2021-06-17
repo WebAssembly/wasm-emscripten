@@ -788,6 +788,66 @@ void MemoryGrow::finalize() {
   }
 }
 
+void TableGet::finalize() {
+  assert(offset);
+  if (offset->type == Type::unreachable) {
+    type = Type::unreachable;
+  }
+}
+void TableGet::finalize(Type type_) {
+  assert(offset);
+  if (offset->type == Type::unreachable) {
+    type = Type::unreachable;
+  } else {
+    type = type_;
+  }
+}
+void TableSet::finalize() {
+  assert(offset && value);
+  if (offset->type == Type::unreachable || value->type == Type::unreachable) {
+    type = Type::unreachable;
+  } else {
+    type = Type::none;
+  }
+}
+void TableSize::finalize() {}
+void TableGrow::finalize() {
+  assert(delta && initialValue);
+  if (delta->type == Type::unreachable ||
+      initialValue->type == Type::unreachable) {
+    type = Type::unreachable;
+  } else {
+    type = Type::i32;
+  }
+}
+void TableFill::finalize() {
+  assert(dest && value && size);
+  type = Type::none;
+  if (dest->type == Type::unreachable || value->type == Type::unreachable ||
+      size->type == Type::unreachable) {
+    type = Type::unreachable;
+  }
+}
+void TableCopy::finalize() {
+  assert(srcOffset && destOffset && size);
+  type = Type::none;
+  if (srcOffset->type == Type::unreachable ||
+      destOffset->type == Type::unreachable ||
+      size->type == Type::unreachable) {
+    type = Type::unreachable;
+  }
+}
+void TableInit::finalize() {
+  assert(srcOffset && destOffset && size);
+  type = Type::none;
+  if (srcOffset->type == Type::unreachable ||
+      destOffset->type == Type::unreachable ||
+      size->type == Type::unreachable) {
+    type = Type::unreachable;
+  }
+}
+void ElemDrop::finalize() {}
+
 void RefNull::finalize(HeapType heapType) { type = Type(heapType, Nullable); }
 
 void RefNull::finalize(Type type_) { type = type_; }

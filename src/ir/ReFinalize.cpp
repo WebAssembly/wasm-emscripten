@@ -127,6 +127,14 @@ void ReFinalize::visitDrop(Drop* curr) { curr->finalize(); }
 void ReFinalize::visitReturn(Return* curr) { curr->finalize(); }
 void ReFinalize::visitMemorySize(MemorySize* curr) { curr->finalize(); }
 void ReFinalize::visitMemoryGrow(MemoryGrow* curr) { curr->finalize(); }
+void ReFinalize::visitTableGet(TableGet* curr) { curr->finalize(); }
+void ReFinalize::visitTableSet(TableSet* curr) { curr->finalize(); }
+void ReFinalize::visitTableSize(TableSize* curr) { curr->finalize(); }
+void ReFinalize::visitTableGrow(TableGrow* curr) { curr->finalize(); }
+void ReFinalize::visitTableFill(TableFill* curr) { curr->finalize(); }
+void ReFinalize::visitTableCopy(TableCopy* curr) { curr->finalize(); }
+void ReFinalize::visitTableInit(TableInit* curr) { curr->finalize(); }
+void ReFinalize::visitElemDrop(ElemDrop* curr) { curr->finalize(); }
 void ReFinalize::visitRefNull(RefNull* curr) { curr->finalize(); }
 void ReFinalize::visitRefIs(RefIs* curr) { curr->finalize(); }
 void ReFinalize::visitRefFunc(RefFunc* curr) {

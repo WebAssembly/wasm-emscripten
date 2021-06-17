@@ -1814,6 +1814,41 @@ void BinaryInstWriter::visitMemoryGrow(MemoryGrow* curr) {
   o << U32LEB(0); // Reserved flags field
 }
 
+void BinaryInstWriter::visitTableGet(TableGet* curr) {
+  o << int8_t(BinaryConsts::TableGet)
+    << U32LEB(parent.getTableIndex(curr->table));
+}
+void BinaryInstWriter::visitTableSet(TableSet* curr) {
+  o << int8_t(BinaryConsts::TableSet)
+    << U32LEB(parent.getTableIndex(curr->table));
+}
+void BinaryInstWriter::visitTableSize(TableSize* curr) {
+  o << int8_t(BinaryConsts::MiscPrefix) << int8_t(BinaryConsts::TableSize)
+    << U32LEB(parent.getTableIndex(curr->table));
+}
+void BinaryInstWriter::visitTableGrow(TableGrow* curr) {
+  o << int8_t(BinaryConsts::MiscPrefix) << int8_t(BinaryConsts::TableGrow)
+    << U32LEB(parent.getTableIndex(curr->table));
+}
+void BinaryInstWriter::visitTableFill(TableFill* curr) {
+  o << int8_t(BinaryConsts::MiscPrefix) << int8_t(BinaryConsts::TableFill)
+    << U32LEB(parent.getTableIndex(curr->table));
+}
+void BinaryInstWriter::visitTableCopy(TableCopy* curr) {
+  o << int8_t(BinaryConsts::MiscPrefix) << int8_t(BinaryConsts::TableCopy)
+    << U32LEB(parent.getTableIndex(curr->destTable))
+    << U32LEB(parent.getTableIndex(curr->srcTable));
+}
+void BinaryInstWriter::visitTableInit(TableInit* curr) {
+  o << int8_t(BinaryConsts::MiscPrefix) << int8_t(BinaryConsts::TableInit)
+    << U32LEB(parent.getElementSegmentIndex(curr->segment))
+    << U32LEB(parent.getTableIndex(curr->table));
+}
+void BinaryInstWriter::visitElemDrop(ElemDrop* curr) {
+  o << int8_t(BinaryConsts::MiscPrefix) << int8_t(BinaryConsts::ElemDrop)
+    << U32LEB(parent.getElementSegmentIndex(curr->segment));
+}
+
 void BinaryInstWriter::visitRefNull(RefNull* curr) {
   o << int8_t(BinaryConsts::RefNull);
   parent.writeHeapType(curr->type.getHeapType());

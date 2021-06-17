@@ -516,7 +516,14 @@ instructions = [
     ("f64x2.promote_low_f32x4",       "makeUnary(s, UnaryOp::PromoteLowVecF32x4ToVecF64x2)"),
 
     # reference types instructions
-    # TODO Add table instructions
+    ("table.get",            "makeTableGet(s)"),
+    ("table.set",            "makeTableSet(s)"),
+    ("table.size",           "makeTableSize(s)"),
+    ("table.grow",           "makeTableGrow(s)"),
+    ("table.fill",           "makeTableFill(s)"),
+    ("table.copy",           "makeTableCopy(s)"),
+    ("table.init",           "makeTableInit(s)"),
+    ("elem.drop",            "makeElemDrop(s)"),
     ("ref.null",             "makeRefNull(s)"),
     ("ref.is_null",          "makeRefIs(s, RefIsNull)"),
     ("ref.func",             "makeRefFunc(s)"),

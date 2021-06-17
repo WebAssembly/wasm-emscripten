@@ -489,6 +489,20 @@ Name SExpressionWasmBuilder::getTableName(Element& s) {
   }
 }
 
+Name SExpressionWasmBuilder::getElementSegmentName(Element& s) {
+  if (s.dollared()) {
+    return s.str();
+  } else {
+    // index
+    size_t offset = atoi(s.str().c_str());
+    if (offset >= wasm.elementSegments.size()) {
+      throw ParseException(
+        "unknown segment in getElementSegmentName", s.line, s.col);
+    }
+    return wasm.elementSegments[offset]->name;
+  }
+}
+
 Name SExpressionWasmBuilder::getGlobalName(Element& s) {
   if (s.dollared()) {
     return s.str();
@@ -2155,6 +2169,135 @@ Expression* SExpressionWasmBuilder::makeMemoryFill(Element& s) {
   return ret;
 }
 
+Expression* SExpressionWasmBuilder::makeTableGet(Element& s) {
+  if (wasm.tables.empty()) {
+    throw ParseException("no tables", s.line, s.col);
+  }
+
+  Index i = 1;
+  auto* ret = allocator.alloc<TableGet>();
+  if (s[i]->isStr()) {
+    ret->table = getTableName(*s[i++]);
+  } else {
+    ret->table = wasm.tables.front()->name;
+  }
+  ret->offset = parseExpression(s[i++]);
+
+  ret->finalize(wasm.getTable(ret->table)->type);
+  return ret;
+}
+Expression* SExpressionWasmBuilder::makeTableSet(Element& s) {
+  if (wasm.tables.empty()) {
+    throw ParseException("no tables", s.line, s.col);
+  }
+
+  Index i = 1;
+  auto* ret = allocator.alloc<TableSet>();
+  if (s[i]->isStr()) {
+    ret->table = getTableName(*s[i++]);
+  } else {
+    ret->table = wasm.tables.front()->name;
+  }
+  ret->offset = parseExpression(s[i++]);
+  ret->value = parseExpression(s[i++]);
+  ret->finalize();
+  return ret;
+}
+Expression* SExpressionWasmBuilder::makeTableSize(Element& s) {
+  if (wasm.tables.empty()) {
+    throw ParseException("no tables", s.line, s.col);
+  }
+
+  Index i = 1;
+  auto* ret = allocator.alloc<TableSize>();
+  if (s[i]->isStr()) {
+    ret->table = getTableName(*s[i++]);
+  } else {
+    ret->table = wasm.tables.front()->name;
+  }
+  ret->finalize();
+  return ret;
+}
+Expression* SExpressionWasmBuilder::makeTableGrow(Element& s) {
+  if (wasm.tables.empty()) {
+    throw ParseException("no tables", s.line, s.col);
+  }
+
+  Index i = 1;
+  auto* ret = allocator.alloc<TableGrow>();
+  if (s[i]->isStr()) {
+    ret->table = getTableName(*s[i++]);
+  } else {
+    ret->table = wasm.tables.front()->name;
+  }
+  ret->initialValue = parseExpression(s[i++]);
+  ret->delta = parseExpression(s[i++]);
+  ret->finalize();
+  return ret;
+}
+Expression* SExpressionWasmBuilder::makeTableFill(Element& s) {
+  if (wasm.tables.empty()) {
+    throw ParseException("no tables", s.line, s.col);
+  }
+
+  Index i = 1;
+  auto* ret = allocator.alloc<TableFill>();
+  if (s[i]->isStr()) {
+    ret->table = getTableName(*s[i++]);
+  } else {
+    ret->table = wasm.tables.front()->name;
+  }
+  ret->dest = parseExpression(s[i++]);
+  ret->value = parseExpression(s[i++]);
+  ret->size = parseExpression(s[i++]);
+  ret->finalize();
+  return ret;
+}
+Expression* SExpressionWasmBuilder::makeTableCopy(Element& s) {
+  if (wasm.tables.empty()) {
+    throw ParseException("no tables", s.line, s.col);
+  }
+
+  Index i = 1;
+  auto* ret = allocator.alloc<TableCopy>();
+  if (s[1]->isStr() && s[2]->isStr()) {
+    ret->destTable = getTableName(*s[i++]);
+    ret->srcTable = getTableName(*s[i++]);
+  } else {
+    ret->srcTable = ret->destTable = wasm.tables.front()->name;
+  }
+  ret->destOffset = parseExpression(s[i++]);
+  ret->srcOffset = parseExpression(s[i++]);
+  ret->size = parseExpression(s[i++]);
+  ret->finalize();
+  return ret;
+}
+Expression* SExpressionWasmBuilder::makeTableInit(Element& s) {
+  if (wasm.tables.empty()) {
+    throw ParseException("no tables", s.line, s.col);
+  }
+
+  Index i = 1;
+  auto* ret = allocator.alloc<TableInit>();
+  if (s[1]->isStr() && s[2]->isStr()) {
+    ret->table = getTableName(*s[i++]);
+  } else {
+    ret->table = wasm.tables.front()->name;
+  }
+  ret->segment = getElementSegmentName(*s[i++]);
+  ret->destOffset = parseExpression(s[i++]);
+  ret->srcOffset = parseExpression(s[i++]);
+  ret->size = parseExpression(s[i++]);
+  ret->finalize();
+  return ret;
+}
+Expression* SExpressionWasmBuilder::makeElemDrop(Element& s) {
+  auto* ret = allocator.alloc<ElemDrop>();
+  ret->segment = getElementSegmentName(*s[1]);
+  ret->finalize();
+  return ret;
+}
+
 Expression* SExpressionWasmBuilder::makePop(Element& s) {
   auto ret = allocator.alloc<Pop>();
   std::vector<Type> types;
@@ -3285,9 +3428,10 @@ void SExpressionWasmBuilder::parseTable(Element& s, bool preParseImport) {
 }
 
 // parses an elem segment
-// elem  ::= (elem (table tableidx)? (offset (expr)) reftype vec(item (expr)))
-//         | (elem reftype vec(item (expr)))
-//         | (elem declare reftype vec(item (expr)))
+// elem  ::= (elem id? (table tableidx)? (offset (expr)) reftype vec(item
+// (expr)))
+//         | (elem id? reftype vec(item (expr)))
+//         | (elem id? declare reftype vec(item (expr)))
 //
 // abbreviation:
 //   (offset (expr)) ≡ (expr)

@@ -618,6 +618,79 @@ public:
     ret->finalize();
     return ret;
   }
+  TableGet* makeTableGet(Name table, Expression* offset, Type type) {
+    auto* ret = wasm.allocator.alloc<TableGet>();
+    ret->table = table;
+    ret->offset = offset;
+    ret->finalize(type);
+    return ret;
+  }
+  TableSet* makeTableSet(Name table, Expression* value, Expression* offset) {
+    auto* ret = wasm.allocator.alloc<TableSet>();
+    ret->table = table;
+    ret->value = value;
+    ret->offset = offset;
+    ret->finalize();
+    return ret;
+  }
+  TableSize* makeTableSize(Name table) {
+    auto* ret = wasm.allocator.alloc<TableSize>();
+    ret->table = table;
+    return ret;
+  }
+  TableGrow*
+  makeTableGrow(Name table, Expression* delta, Expression* initialValue) {
+    auto* ret = wasm.allocator.alloc<TableGrow>();
+    ret->table = table;
+    ret->delta = delta;
+    ret->initialValue = initialValue;
+    return ret;
+  }
+  TableFill* makeTableFill(Name table,
+                           Expression* size,
+                           Expression* value,
+                           Expression* dest) {
+    auto* ret = wasm.allocator.alloc<TableFill>();
+    ret->table = table;
+    ret->size = size;
+    ret->value = value;
+    ret->dest = dest;
+    ret->finalize();
+    return ret;
+  }
+  TableCopy* makeTableCopy(Name srcTable,
+                           Name destTable,
+                           Expression* size,
+                           Expression* srcOffset,
+                           Expression* destOffset) {
+    auto* ret = wasm.allocator.alloc<TableCopy>();
+    ret->srcTable = srcTable;
+    ret->destTable = destTable;
+    ret->size = size;
+    ret->srcOffset = srcOffset;
+    ret->destOffset = destOffset;
+    ret->finalize();
+    return ret;
+  }
+  TableInit* makeTableInit(Name table,
+                           Name segment,
+                           Expression* size,
+                           Expression* srcOffset,
+                           Expression* destOffset) {
+    auto* ret = wasm.allocator.alloc<TableInit>();
+    ret->table = table;
+    ret->segment = segment;
+    ret->srcOffset = srcOffset;
+    ret->destOffset = destOffset;
+    ret->size = size;
+    ret->finalize();
+    return ret;
+  }
+  ElemDrop* makeElemDrop(Name segment) {
+    auto* ret = wasm.allocator.alloc<ElemDrop>();
+    ret->segment = segment;
+    return ret;
+  }
   RefNull* makeRefNull(Type type) {
     auto* ret = wasm.allocator.alloc<RefNull>();
     ret->finalize(type);

@@ -167,6 +167,7 @@ private:
 
   Name getFunctionName(Element& s);
   Name getTableName(Element& s);
+  Name getElementSegmentName(Element& s);
   Name getGlobalName(Element& s);
   Name getEventName(Element& s);
   void parseStart(Element& s) { wasm.addStart(getFunctionName(*s[1])); }
@@ -238,6 +239,16 @@ private:
   Expression* makeDataDrop(Element& s);
   Expression* makeMemoryCopy(Element& s);
   Expression* makeMemoryFill(Element& s);
+
+  Expression* makeTableGet(Element& s);
+  Expression* makeTableSet(Element& s);
+  Expression* makeTableSize(Element& s);
+  Expression* makeTableGrow(Element& s);
+  Expression* makeTableFill(Element& s);
+  Expression* makeTableCopy(Element& s);
+  Expression* makeTableInit(Element& s);
+  Expression* makeElemDrop(Element& s);
+
   Expression* makePush(Element& s);
   Expression* makePop(Element& s);
   Expression* makeIf(Element& s);

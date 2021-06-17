@@ -111,7 +111,16 @@ function initializeConstants() {
     'ArrayNew',
     'ArrayGet',
     'ArraySet',
-    'ArrayLen'
+    'ArrayLen',
+    // FIXME: is 'RefAs' missing?
+    'TableGet',
+    'TableSet',
+    'TableSize',
+    'TableGrow',
+    'TableFill',
+    'TableCopy',
+    'TableInit',
+    'ElemDrop',
   ].forEach(name => {
     Module['ExpressionIds'][name] = Module[name + 'Id'] = Module['_Binaryen' + name + 'Id']();
   });
@@ -547,6 +556,11 @@ function initializeConstants() {
     'WritesGlobal',
     'ReadsMemory',
     'WritesMemory',
+    // TODO: add ReadsDataSegment & WritesDataSegment too
+    'ReadsTable',
+    'WritesTable',
+    'ReadsElementSegment',
+    'DropsElementSegment',
     'ImplicitTrap',
     'IsAtomic',
     'Throws',
@@ -690,6 +704,36 @@ function wrapModule(module, self = {}) {
   self['data'] = {
     'drop'(segment) {
       return Module['_BinaryenDataDrop'](module, segment);
+    }
+  }
+
+  self['table'] = {
+    'get'(table, offset, type) {
+      return Module['_BinaryenTableGet'](module, strToStack(table), offset, type);
+    },
+    'set'(table, value, offset, type) {
+      return Module['_BinaryenTableSet'](module, strToStack(table), value, offset, type);
+    },
+    'size'(table) {
+      Module['_BinaryenTableSize'](module, strToStack(table));
+    },
+    'grow'(table, delta, initialValue) {
+      Module['_BinaryenTableGrow'](module, strToStack(table), delta, initialValue);
+    },
+    'fill'(table, size, value, dest) {
+      Module['_BinaryenTableFill'](module, strToStack(table), size, value, dest);
+    },
+    'copy'(srcTable, destTable, size, srcOffset, destOffset) {
+      Module['_BinaryenTableCopy'](module, strToStack(srcTable), strToStack(destTable), size, srcOffset, destOffset);
+    },
+    'init'(table, segment, size, srcOffset, destOffset) {
+      Module['_BinaryenTableInit'](module, strToStack(table), strToStack(segment), size, srcOffset, destOffset);
+    }
+  }
+
+  self['elem'] = {
+    'drop'(segment) {
+      return Module['_BinaryenElemDrop'](module, strToStack(segment));
     }
   }
 

@@ -117,8 +117,9 @@ struct ShellExternalInterface : ModuleInstance::ExternalInterface {
     if (wasm.memory.exists && !wasm.memory.imported()) {
       memory.resize(wasm.memory.initial * wasm::Memory::kPageSize);
     }
-    ModuleUtils::iterDefinedTables(
-      wasm, [&](Table* table) { tables[table->name].resize(table->initial); });
+    ModuleUtils::iterDefinedTables(wasm, [&](Table* table) {
+      tables[table->name].resize(table->initial, Literal(table->type));
+    });
   }
 
   void importGlobals(std::map<Name, Literals>& globals, Module& wasm) override {
@@ -224,13 +225,30 @@ struct ShellExternalInterface : ModuleInstance::ExternalInterface {
     memory.set<std::array<uint8_t, 16>>(addr, value);
   }
 
-  void tableStore(Name tableName, Address addr, const Literal& entry) override {
-    auto& table = tables[tableName];
+  void tableStore(Name tableName, Index addr, const Literal& entry) override {
+    auto& table = tables.at(tableName);
     if (addr >= table.size()) {
       trap("out of bounds table access");
     } else {
       table[addr] = entry;
     }
+  }
+  const Literal& tableLoad(Name tableName, Index addr) override {
+    auto& table = tables.at(tableName);
+    if (addr >= table.size()) {
+      trap("out of bounds table access");
+    }
+
+    return table.at(addr);
+  }
+  Index tableSize(Name tableName) override {
+    return tables.at(tableName).size();
+  }
+  Index growTable(Name tableName, Index delta, Literal initialValue) override {
+    auto& table = tables.at(tableName);
+    auto prevSize = table.size();
+    table.resize(prevSize + delta, initialValue);
+    return prevSize;
   }
 
   bool growMemory(Address /*oldSize*/, Address newSize) override {

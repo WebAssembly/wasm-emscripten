@@ -836,6 +836,45 @@ BinaryenMemoryFill(BinaryenModuleRef module,
                    BinaryenExpressionRef dest,
                    BinaryenExpressionRef value,
                    BinaryenExpressionRef size);
+BINARYEN_API BinaryenExpressionRef
+BinaryenTableGet(BinaryenModuleRef module,
+                 const char* table,
+                 BinaryenExpressionRef offset,
+                 BinaryenType type);
+BINARYEN_API BinaryenExpressionRef
+BinaryenTableSet(BinaryenModuleRef module,
+                 const char* table,
+                 BinaryenExpressionRef value,
+                 BinaryenExpressionRef offset);
+BINARYEN_API BinaryenExpressionRef BinaryenTableSize(BinaryenModuleRef module,
+                                                     const char* table);
+BINARYEN_API BinaryenExpressionRef
+BinaryenTableGrow(BinaryenModuleRef module,
+                  const char* table,
+                  BinaryenExpressionRef delta,
+                  BinaryenExpressionRef initialValue);
+BINARYEN_API BinaryenExpressionRef
+BinaryenTableFill(BinaryenModuleRef module,
+                  const char* table,
+                  BinaryenExpressionRef size,
+                  BinaryenExpressionRef value,
+                  BinaryenExpressionRef dest);
+BINARYEN_API BinaryenExpressionRef
+BinaryenTableCopy(BinaryenModuleRef module,
+                  const char* srcTable,
+                  const char* destTable,
+                  BinaryenExpressionRef size,
+                  BinaryenExpressionRef srcOffset,
+                  BinaryenExpressionRef destOffset);
+BINARYEN_API BinaryenExpressionRef
+BinaryenTableInit(BinaryenModuleRef module,
+                  const char* table,
+                  const char* segment,
+                  BinaryenExpressionRef size,
+                  BinaryenExpressionRef srcOffset,
+                  BinaryenExpressionRef destOffset);
+BINARYEN_API BinaryenExpressionRef BinaryenElemDrop(BinaryenModuleRef module,
+                                                    const char* segment);
 BINARYEN_API BinaryenExpressionRef BinaryenRefNull(BinaryenModuleRef module,
                                                    BinaryenType type);
 BINARYEN_API BinaryenExpressionRef BinaryenRefIs(BinaryenModuleRef module,
@@ -2618,6 +2657,10 @@ BINARYEN_API BinaryenSideEffects BinaryenSideEffectReadsGlobal(void);
 BINARYEN_API BinaryenSideEffects BinaryenSideEffectWritesGlobal(void);
 BINARYEN_API BinaryenSideEffects BinaryenSideEffectReadsMemory(void);
 BINARYEN_API BinaryenSideEffects BinaryenSideEffectWritesMemory(void);
+BINARYEN_API BinaryenSideEffects BinaryenSideEffectReadsTable(void);
+BINARYEN_API BinaryenSideEffects BinaryenSideEffectWritesTable(void);
+BINARYEN_API BinaryenSideEffects BinaryenSideEffectReadsElementSegment(void);
+BINARYEN_API BinaryenSideEffects BinaryenSideEffectDropsElementSegment(void);
 BINARYEN_API BinaryenSideEffects BinaryenSideEffectImplicitTrap(void);
 BINARYEN_API BinaryenSideEffects BinaryenSideEffectIsAtomic(void);
 BINARYEN_API BinaryenSideEffects BinaryenSideEffectThrows(void);

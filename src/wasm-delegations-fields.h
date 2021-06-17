@@ -470,6 +470,70 @@ switch (DELEGATE_ID) {
     DELEGATE_END(MemoryGrow);
     break;
   }
+  case Expression::Id::TableGetId: {
+    DELEGATE_START(TableGet);
+    DELEGATE_FIELD_NAME(TableGet, table);
+    DELEGATE_FIELD_CHILD(TableGet, offset);
+    DELEGATE_END(TableGet);
+    break;
+  }
+  case Expression::Id::TableSetId: {
+    DELEGATE_START(TableSet);
+    DELEGATE_FIELD_NAME(TableSet, table);
+    DELEGATE_FIELD_CHILD(TableSet, value);
+    DELEGATE_FIELD_CHILD(TableSet, offset);
+    DELEGATE_END(TableSet);
+    break;
+  }
+  case Expression::Id::TableSizeId: {
+    DELEGATE_START(TableSize);
+    DELEGATE_FIELD_NAME(TableSize, table);
+    DELEGATE_END(TableSize);
+    break;
+  }
+  case Expression::Id::TableGrowId: {
+    DELEGATE_START(TableGrow);
+    DELEGATE_FIELD_NAME(TableGrow, table);
+    DELEGATE_FIELD_CHILD(TableGrow, delta);
+    DELEGATE_FIELD_CHILD(TableGrow, initialValue);
+    DELEGATE_END(TableGrow);
+    break;
+  }
+  case Expression::Id::TableFillId: {
+    DELEGATE_START(TableFill);
+    DELEGATE_FIELD_NAME(TableFill, table);
+    DELEGATE_FIELD_CHILD(TableFill, size);
+    DELEGATE_FIELD_CHILD(TableFill, value);
+    DELEGATE_FIELD_CHILD(TableFill, dest);
+    DELEGATE_END(TableFill);
+    break;
+  }
+  case Expression::Id::TableCopyId: {
+    DELEGATE_START(TableCopy);
+    DELEGATE_FIELD_NAME(TableCopy, destTable);
+    DELEGATE_FIELD_NAME(TableCopy, srcTable);
+    DELEGATE_FIELD_CHILD(TableCopy, size);
+    DELEGATE_FIELD_CHILD(TableCopy, srcOffset);
+    DELEGATE_FIELD_CHILD(TableCopy, destOffset);
+    DELEGATE_END(TableCopy);
+    break;
+  }
+  case Expression::Id::TableInitId: {
+    DELEGATE_START(TableInit);
+    DELEGATE_FIELD_NAME(TableInit, table);
+    DELEGATE_FIELD_NAME(TableInit, segment);
+    DELEGATE_FIELD_CHILD(TableInit, size);
+    DELEGATE_FIELD_CHILD(TableInit, srcOffset);
+    DELEGATE_FIELD_CHILD(TableInit, destOffset);
+    DELEGATE_END(TableInit);
+    break;
+  }
+  case Expression::Id::ElemDropId: {
+    DELEGATE_START(ElemDrop);
+    DELEGATE_FIELD_NAME(ElemDrop, segment);
+    DELEGATE_END(ElemDrop);
+    break;
+  }
   case Expression::Id::RefNullId: {
     DELEGATE_START(RefNull);
     DELEGATE_FIELD_TYPE(RefNull, type);

@@ -511,6 +511,26 @@ struct CostAnalyzer : public OverriddenVisitor<CostAnalyzer, Index> {
   Index visitSIMDLoadStoreLane(SIMDLoadStoreLane* curr) {
     return 1 + Index(curr->isStore()) + visit(curr->ptr) + visit(curr->vec);
   }
+  Index visitTableGet(TableGet* curr) { return 1 + visit(curr->offset); }
+  Index visitTableSet(TableSet* curr) {
+    return 1 + visit(curr->offset) + visit(curr->value);
+  }
+  Index visitTableSize(TableSize* curr) { return 1; }
+  Index visitTableGrow(TableGrow* curr) {
+    return 100 + visit(curr->delta) + visit(curr->initialValue);
+  }
+  Index visitTableFill(TableFill* curr) {
+    return 6 + visit(curr->dest) + visit(curr->value) + visit(curr->size);
+  }
+  Index visitTableCopy(TableCopy* curr) {
+    return 6 + visit(curr->destOffset) + visit(curr->srcOffset) +
+           visit(curr->size);
+  }
+  Index visitTableInit(TableInit* curr) {
+    return 6 + visit(curr->srcOffset) + visit(curr->destOffset) +
+           visit(curr->size);
+  }
+  Index visitElemDrop(ElemDrop* curr) { return 5; }
   Index visitSIMDReplace(SIMDReplace* curr) {
     return 2 + visit(curr->vec) + visit(curr->value);
   }

@@ -125,6 +125,32 @@ struct ReachabilityAnalyzer : public PostWalker<ReachabilityAnalyzer> {
   void visitMemoryFill(MemoryFill* curr) { usesMemory = true; }
   void visitMemorySize(MemorySize* curr) { usesMemory = true; }
   void visitMemoryGrow(MemoryGrow* curr) { usesMemory = true; }
+  void visitTableGet(TableGet* curr) {
+    maybeAdd(ModuleElement(ModuleElementKind::Table, curr->table));
+  }
+  void visitTableSet(TableSet* curr) {
+    maybeAdd(ModuleElement(ModuleElementKind::Table, curr->table));
+  }
+  void visitTableSize(TableSize* curr) {
+    maybeAdd(ModuleElement(ModuleElementKind::Table, curr->table));
+  }
+  void visitTableGrow(TableGrow* curr) {
+    maybeAdd(ModuleElement(ModuleElementKind::Table, curr->table));
+  }
+  void visitTableFill(TableFill* curr) {
+    maybeAdd(ModuleElement(ModuleElementKind::Table, curr->table));
+  }
+  void visitTableCopy(TableCopy* curr) {
+    maybeAdd(ModuleElement(ModuleElementKind::Table, curr->srcTable));
+    maybeAdd(ModuleElement(ModuleElementKind::Table, curr->destTable));
+  }
+  void visitTableInit(TableInit* curr) {
+    maybeAdd(ModuleElement(ModuleElementKind::Table, curr->table));
+    maybeAdd(ModuleElement(ModuleElementKind::ElementSegment, curr->segment));
+  }
+  void visitElemDrop(ElemDrop* curr) {
+    maybeAdd(ModuleElement(ModuleElementKind::ElementSegment, curr->segment));
+  }
   void visitRefFunc(RefFunc* curr) {
     maybeAdd(ModuleElement(ModuleElementKind::Function, curr->func));
   }
@@ -221,13 +247,25 @@ struct RemoveUnusedModuleElements : public Pass {
     // Since we've removed all empty element segments, here we mark all tables
     // that have a segment left.
     std::unordered_set<Name> nonemptyTables;
+    std::unordered_set<Name> tablesWithNonremovableSegments;
     ModuleUtils::iterActiveElementSegments(
-      *module,
-      [&](ElementSegment* segment) { nonemptyTables.insert(segment->table); });
+      *module, [&](ElementSegment* segment) {
+        if (segment->data.size() > 0) {
+          nonemptyTables.insert(segment->table);
+        }
+        if (analyzer.reachable.count(ModuleElement(
+              ModuleElementKind::ElementSegment, segment->name))) {
+          tablesWithNonremovableSegments.insert(segment->table);
+        }
+      });
     module->removeTables([&](Table* curr) {
-      return (nonemptyTables.count(curr->name) == 0 || !curr->imported()) &&
-             analyzer.reachable.count(
-               ModuleElement(ModuleElementKind::Table, curr->name)) == 0;
+      if (tablesWithNonremovableSegments.count(curr->name) ||
+          analyzer.reachable.count(
+            ModuleElement(ModuleElementKind::Table, curr->name)) ||
+            (curr->imported() && nonemptyTables.count(curr->name))) {
+        return false;
+      }
+      return true;
     });
     // TODO: After removing elements, we may be able to remove more things, and
     //       should continue to work. (For example, after removing a reference

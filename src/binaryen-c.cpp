@@ -6042,6 +6042,14 @@ const char* BinaryenFunctionImportGetBase(BinaryenFunctionRef import) {
     return "";
   }
 }
+void BinaryenFunctionImportToFunction(BinaryenFunctionRef import) {
+  auto* func = (Function*)import;
+  if (func->imported()) {
+    func->module = Name();
+    func->base = Name();
+    func->setExplicitName(func->name);
+  }
+}
 const char* BinaryenTableImportGetBase(BinaryenTableRef import) {
   auto* table = (Table*)import;
   if (table->imported()) {

@@ -2756,6 +2756,7 @@ BINARYEN_API void BinaryenAddFunctionImport(BinaryenModuleRef module,
                                             const char* externalBaseName,
                                             BinaryenType params,
                                             BinaryenType results);
+BINARYEN_API void BinaryenFunctionImportToFunction(BinaryenFunctionRef import);
 BINARYEN_API void BinaryenAddTableImport(BinaryenModuleRef module,
                                          const char* internalName,
                                          const char* externalModuleName,

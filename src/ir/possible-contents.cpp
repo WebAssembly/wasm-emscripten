@@ -617,9 +617,7 @@ struct InfoCollector
   void visitRefEq(RefEq* curr) {
     addRoot(curr);
   }
-  void visitTableGet(TableGet* curr) {
-    addRoot(curr);
-  }
+  void visitTableGet(TableGet* curr) { addRoot(curr); }
   void visitTableSet(TableSet* curr) {}
   void visitTableSize(TableSize* curr) { addRoot(curr); }
   void visitTableGrow(TableGrow* curr) { addRoot(curr); }

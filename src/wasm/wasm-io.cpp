@@ -30,7 +30,6 @@
 #include "wasm-s-parser.h"
 #include "wat-parser.h"
 
-
 namespace wasm {
 
 bool useNewWATParser = false;

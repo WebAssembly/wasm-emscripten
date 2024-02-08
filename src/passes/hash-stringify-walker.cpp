@@ -15,6 +15,7 @@
  */
 
 #include "stringify-walker.h"
+#include "support/intervals.h"
 
 namespace wasm {
 
@@ -142,6 +143,45 @@ std::vector<SuffixTree::RepeatedSubstring> StringifyProcessor::dedupe(
       seen.insert(idxToInsert.begin(), idxToInsert.end());
       result.push_back(substring);
     }
+  }
+
+  return result;
+}
+
+std::vector<SuffixTree::RepeatedSubstring> StringifyProcessor::removeOverlaps(
+  const std::vector<SuffixTree::RepeatedSubstring>& substrings) {
+  std::vector<Interval> intervals;
+  std::unordered_map<Interval, unsigned> intervalMap;
+
+  // Construct intervals
+  for (Index i = 0; i < substrings.size(); i++) {
+    auto substring = substrings[i];
+    for (auto startIdx : substring.StartIndices) {
+      auto interval =
+        Interval(startIdx,
+                 startIdx + substring.Length,
+                 substring.Length * substring.StartIndices.size());
+      intervals.push_back(interval);
+      intervalMap[std::move(interval)] = i;
+    }
+  }
+
+  // Get the overlapping intervals
+  std::set<Interval> overlaps = IntervalProcessor::getOverlaps(intervals);
+  std::set<unsigned> doNotInclude;
+  for (auto& interval : overlaps) {
+    doNotInclude.insert(intervalMap[interval]);
+  }
+
+  // Only include non-overlapping substrings
+  std::vector<SuffixTree::RepeatedSubstring> result;
+  for (Index i = 0; i < substrings.size(); i++) {
+    if (doNotInclude.find(i) != doNotInclude.end()) {
+      continue;
+    }
+
+    auto substring = substrings[i];
+    result.push_back(substring);
   }
 
   return result;

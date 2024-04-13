@@ -885,14 +885,22 @@ Result<> IRBuilder::visitCatch(Name tag) {
   auto originalLabel = scope.getOriginalLabel();
   auto label = scope.label;
   auto expr = finishScope();
+  size_t index = 0;
   CHECK_ERR(expr);
   if (wasTry) {
     tryy->body = *expr;
   } else {
-    tryy->catchBodies.push_back(*expr);
+    index = scope.getIndex();
+    if (index > tryy->catchBodies.size()) {
+      tryy->catchBodies.resize(index + 1);
+    }
+    tryy->catchBodies[index] = *expr;
   }
-  tryy->catchTags.push_back(tag);
-  pushScope(ScopeCtx::makeCatch(tryy, originalLabel, label));
+  if (index > tryy->catchTags.size()) {
+    tryy->catchTags.resize(index + 1);
+  }
+  tryy->catchTags[index] = tag;
+  pushScope(ScopeCtx::makeCatch(tryy, originalLabel, index, label));
   // Push a pop for the exception payload.
   auto params = wasm.getTag(tag)->sig.params;
   if (params != Type::none) {
@@ -919,7 +927,11 @@ Result<> IRBuilder::visitCatchAll() {
   if (wasTry) {
     tryy->body = *expr;
   } else {
-    tryy->catchBodies.push_back(*expr);
+    size_t lastTagIdx = tryy->catchTags.size();
+    if (lastTagIdx > tryy->catchBodies.size()) {
+      tryy->catchBodies.resize(lastTagIdx + 1);
+    }
+    tryy->catchBodies[lastTagIdx] = *expr;
   }
   pushScope(ScopeCtx::makeCatchAll(tryy, originalLabel, label));
   return Ok{};
@@ -1038,9 +1050,20 @@ Result<> IRBuilder::visitEnd() {
     tryy->body = *expr;
     tryy->finalize(tryy->type);
     push(maybeWrapForLabel(tryy));
-  } else if (Try * tryy;
-             (tryy = scope.getCatch()) || (tryy = scope.getCatchAll())) {
-    tryy->catchBodies.push_back(*expr);
+  } else if (Try * tryy; (tryy = scope.getCatch())) {
+    auto index = scope.getIndex();
+    if (index > tryy->catchBodies.size()) {
+      tryy->catchBodies.resize(index + 1);
+    }
+    tryy->catchBodies[index] = *expr;
+    tryy->finalize(tryy->type);
+    push(maybeWrapForLabel(tryy));
+  } else if (Try * tryy; (tryy = scope.getCatchAll())) {
+    auto index = tryy->catchTags.size();
+    if (index > tryy->catchBodies.size()) {
+      tryy->catchBodies.resize(index + 1);
+    }
+    tryy->catchBodies[index] = *expr;
     tryy->finalize(tryy->type);
     push(maybeWrapForLabel(tryy));
   } else if (auto* trytable = scope.getTryTable()) {

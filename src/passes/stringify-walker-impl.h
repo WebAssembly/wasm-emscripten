@@ -99,14 +99,18 @@ template<typename SubType> void StringifyWalker<SubType>::dequeueControlFlow() {
     }
     case Expression::Id::TryId: {
       auto* tryy = curr->cast<Try>();
-      addUniqueSymbol(SeparatorReason::makeTryBodyStart());
+
+      addUniqueSymbol(SeparatorReason::makeTryStart(tryy));
       Super::walk(tryy->body);
-      addUniqueSymbol(SeparatorReason::makeEnd());
-      for (auto& child : tryy->catchBodies) {
-        addUniqueSymbol(SeparatorReason::makeTryCatchStart());
-        Super::walk(child);
-        addUniqueSymbol(SeparatorReason::makeEnd());
+      for (size_t i = 0; i < tryy->catchBodies.size(); i++) {
+        if (tryy->hasCatchAll() && i == tryy->catchBodies.size() - 1) {
+          addUniqueSymbol(SeparatorReason::makeCatchAllStart());
+        } else {
+          addUniqueSymbol(SeparatorReason::makeCatchStart(tryy->catchTags[i]));
+        }
+        Super::walk(tryy->catchBodies[i]);
       }
+      addUniqueSymbol(SeparatorReason::makeEnd());
       break;
     }
     case Expression::Id::LoopId: {

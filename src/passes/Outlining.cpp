@@ -106,6 +106,20 @@ struct ReconstructStringifyWalker
     } else if (auto curr = reason.getLoopStart()) {
       ASSERT_OK(existingBuilder.visitLoopStart(curr->loop));
       DBG(desc = "Loop Start at ");
+    } else if (auto curr = reason.getTryStart()) {
+      // We preserve the name of the tryy because IRBuilder expects
+      // visitTryStart() to be called on an empty Try, during the normal case of
+      // parsing.
+      auto name = curr->tryy->name;
+      ASSERT_OK(existingBuilder.visitTryStart(curr->tryy, Name()));
+      DBG(desc = "Try Start at ");
+      curr->tryy->name = name;
+    } else if (auto curr = reason.getCatchStart()) {
+      ASSERT_OK(existingBuilder.visitCatch(curr->tag));
+      DBG(desc = "Catch Start at ");
+    } else if (reason.getCatchAllStart()) {
+      ASSERT_OK(existingBuilder.visitCatchAll());
+      DBG(desc = "Catch All Start at");
     } else if (reason.getEnd()) {
       ASSERT_OK(existingBuilder.visitEnd());
       // Outlining performs an unnested walk of the Wasm module, visiting

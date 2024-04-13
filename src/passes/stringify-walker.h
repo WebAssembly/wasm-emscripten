@@ -88,9 +88,15 @@ struct StringifyWalker
       Loop* loop;
     };
 
-    struct TryBodyStart {};
+    struct TryStart {
+      Try* tryy;
+    };
 
-    struct TryCatchStart {};
+    struct CatchStart {
+      Name tag;
+    };
+
+    struct CatchAllStart {};
 
     struct End {
       Expression* curr;
@@ -100,8 +106,9 @@ struct StringifyWalker
                                    IfStart,
                                    ElseStart,
                                    LoopStart,
-                                   TryBodyStart,
-                                   TryCatchStart,
+                                   TryStart,
+                                   CatchStart,
+                                   CatchAllStart,
                                    End>;
 
     Separator reason;
@@ -123,11 +130,14 @@ struct StringifyWalker
     static SeparatorReason makeLoopStart(Loop* loop) {
       return SeparatorReason(LoopStart{loop});
     }
-    static SeparatorReason makeTryCatchStart() {
-      return SeparatorReason(TryCatchStart{});
+    static SeparatorReason makeTryStart(Try* tryy) {
+      return SeparatorReason(TryStart{tryy});
     }
-    static SeparatorReason makeTryBodyStart() {
-      return SeparatorReason(TryBodyStart{});
+    static SeparatorReason makeCatchStart(Name tag) {
+      return SeparatorReason(CatchStart{tag});
+    }
+    static SeparatorReason makeCatchAllStart() {
+      return SeparatorReason(CatchAllStart{});
     }
     static SeparatorReason makeEnd() { return SeparatorReason(End{}); }
     FuncStart* getFuncStart() { return std::get_if<FuncStart>(&reason); }
@@ -135,11 +145,10 @@ struct StringifyWalker
     IfStart* getIfStart() { return std::get_if<IfStart>(&reason); }
     ElseStart* getElseStart() { return std::get_if<ElseStart>(&reason); }
     LoopStart* getLoopStart() { return std::get_if<LoopStart>(&reason); }
-    TryBodyStart* getTryBodyStart() {
-      return std::get_if<TryBodyStart>(&reason);
-    }
-    TryCatchStart* getTryCatchStart() {
-      return std::get_if<TryCatchStart>(&reason);
+    TryStart* getTryStart() { return std::get_if<TryStart>(&reason); }
+    CatchStart* getCatchStart() { return std::get_if<CatchStart>(&reason); }
+    CatchAllStart* getCatchAllStart() {
+      return std::get_if<CatchAllStart>(&reason);
     }
     End* getEnd() { return std::get_if<End>(&reason); }
   };
@@ -157,10 +166,12 @@ struct StringifyWalker
       return o << "Else Start";
     } else if (reason.getLoopStart()) {
       return o << "Loop Start";
-    } else if (reason.getTryBodyStart()) {
-      return o << "Try Body Start";
-    } else if (reason.getTryCatchStart()) {
-      return o << "Try Catch Start";
+    } else if (reason.getTryStart()) {
+      return o << "Try Start";
+    } else if (reason.getCatchStart()) {
+      return o << "Catch Start";
+    } else if (reason.getCatchAllStart()) {
+      return o << "Catch All Start";
     } else if (reason.getEnd()) {
       return o << "End";
     }

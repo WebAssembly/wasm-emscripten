@@ -437,6 +437,7 @@ public:
 
   // Whether this type is only inhabited by null values.
   bool isNull() const;
+  bool isContinuation() const;
   bool isStruct() const;
   bool isArray() const;
   bool isExn() const;

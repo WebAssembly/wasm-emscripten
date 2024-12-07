@@ -14,7 +14,7 @@
 --enable-extended-const
 --enable-strings
 --enable-multimemory
---enable-typed-continuations
+--enable-stack-switching
 --enable-shared-everything
 --enable-fp16
 --enable-bulk-memory-opt

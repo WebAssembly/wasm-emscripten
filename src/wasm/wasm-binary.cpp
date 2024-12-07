@@ -1348,8 +1348,8 @@ void WasmBinaryWriter::writeFeaturesSection() {
         return BinaryConsts::CustomSections::StringsFeature;
       case FeatureSet::MultiMemory:
         return BinaryConsts::CustomSections::MultiMemoryFeature;
-      case FeatureSet::TypedContinuations:
-        return BinaryConsts::CustomSections::TypedContinuationsFeature;
+      case FeatureSet::StackSwitching:
+        return BinaryConsts::CustomSections::StackSwitchingFeature;
       case FeatureSet::SharedEverything:
         return BinaryConsts::CustomSections::SharedEverythingFeature;
       case FeatureSet::FP16:
@@ -3008,26 +3008,63 @@ Result<> WasmBinaryReader::readInst() {
     case BinaryConsts::RetCallRef:
       return builder.makeCallRef(getIndexedHeapType(),
                                  code == BinaryConsts::RetCallRef);
+    case BinaryConsts::ContNew:
+      return builder.makeContNew(getIndexedHeapType());
     case BinaryConsts::ContBind: {
       auto before = getIndexedHeapType();
       auto after = getIndexedHeapType();
       return builder.makeContBind(before, after);
     }
-    case BinaryConsts::ContNew:
-      return builder.makeContNew(getIndexedHeapType());
+    case BinaryConsts::Suspend:
+      return builder.makeSuspend(getTagName(getU32LEB()));
     case BinaryConsts::Resume: {
       auto type = getIndexedHeapType();
-      std::vector<Name> tags;
-      std::vector<Index> labels;
       auto numHandlers = getU32LEB();
+      std::vector<Name> tags;
+      std::vector<std::optional<Index>> labels;
+      tags.reserve(numHandlers);
+      labels.reserve(numHandlers);
       for (Index i = 0; i < numHandlers; ++i) {
-        tags.push_back(getTagName(getU32LEB()));
-        labels.push_back(getU32LEB());
+        uint8_t code = getInt8();
+        if (code == BinaryConsts::OnLabel) {
+          tags.push_back(getTagName(getU32LEB()));
+          labels.push_back(std::optional<Index>{getU32LEB()});
+        } else if (code == BinaryConsts::OnSwitch) {
+          tags.push_back(getTagName(getU32LEB()));
+          labels.push_back(std::nullopt);
+        } else {
+          return Err{"ON opcode expected"};
+        }
       }
       return builder.makeResume(type, tags, labels);
     }
-    case BinaryConsts::Suspend:
-      return builder.makeSuspend(getTagName(getU32LEB()));
+    case BinaryConsts::ResumeThrow: {
+      auto type = getIndexedHeapType();
+      auto tag = getTagName(getU32LEB());
+      auto numHandlers = getU32LEB();
+      std::vector<Name> tags;
+      std::vector<std::optional<Index>> labels;
+      tags.reserve(numHandlers);
+      labels.reserve(numHandlers);
+      for (Index i = 0; i < numHandlers; ++i) {
+        uint8_t code = getInt8();
+        if (code == BinaryConsts::OnLabel) {
+          tags.push_back(getTagName(getU32LEB()));
+          labels.push_back(std::optional<Index>{getU32LEB()});
+        } else if (code == BinaryConsts::OnSwitch) {
+          tags.push_back(getTagName(getU32LEB()));
+          labels.push_back(std::nullopt);
+        } else {
+          return Err{"ON opcode expected"};
+        }
+      }
+      return builder.makeResumeThrow(type, tag, tags, labels);
+    }
+    case BinaryConsts::Switch: {
+      auto type = getIndexedHeapType();
+      auto tag = getTagName(getU32LEB());
+      return builder.makeStackSwitch(type, tag);
+    }
 
 #define BINARY_INT(code)                                                       \
   case BinaryConsts::I32##code:                                                \
@@ -4828,9 +4865,8 @@ void WasmBinaryReader::readFeatures(size_t payloadLen) {
       feature = FeatureSet::Strings;
     } else if (name == BinaryConsts::CustomSections::MultiMemoryFeature) {
       feature = FeatureSet::MultiMemory;
-    } else if (name ==
-               BinaryConsts::CustomSections::TypedContinuationsFeature) {
-      feature = FeatureSet::TypedContinuations;
+    } else if (name == BinaryConsts::CustomSections::StackSwitchingFeature) {
+      feature = FeatureSet::StackSwitching;
     } else if (name == BinaryConsts::CustomSections::SharedEverythingFeature) {
       feature = FeatureSet::SharedEverything;
     } else if (name == BinaryConsts::CustomSections::FP16Feature) {

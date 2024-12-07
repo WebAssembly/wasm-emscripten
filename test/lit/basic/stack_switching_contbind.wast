@@ -29,6 +29,8 @@
 
  ;; CHECK-TEXT:      (type $5 (func (param (ref $ct1)) (result (ref $ct1))))
 
+ ;; CHECK-TEXT:      (type $6 (func (result (ref $ct1))))
+
  ;; CHECK-TEXT:      (func $f (type $4) (param $x (ref $ct1)) (result (ref $ct2))
  ;; CHECK-TEXT-NEXT:  (cont.bind $ct1 $ct2
  ;; CHECK-TEXT-NEXT:   (i32.const 123)
@@ -39,6 +41,8 @@
  ;; CHECK-BIN:      (type $4 (func (param (ref $ct1)) (result (ref $ct2))))
 
  ;; CHECK-BIN:      (type $5 (func (param (ref $ct1)) (result (ref $ct1))))
+
+ ;; CHECK-BIN:      (type $6 (func (result (ref $ct1))))
 
  ;; CHECK-BIN:      (func $f (type $4) (param $x (ref $ct1)) (result (ref $ct2))
  ;; CHECK-BIN-NEXT:  (cont.bind $ct1 $ct2
@@ -70,6 +74,23 @@
    (local.get $x)
   )
  )
+
+ ;; CHECK-TEXT:      (func $k (type $6) (result (ref $ct1))
+ ;; CHECK-TEXT-NEXT:  (block ;; (replaces unreachable ContBind we can't emit)
+ ;; CHECK-TEXT-NEXT:   (drop
+ ;; CHECK-TEXT-NEXT:    (unreachable)
+ ;; CHECK-TEXT-NEXT:   )
+ ;; CHECK-TEXT-NEXT:   (unreachable)
+ ;; CHECK-TEXT-NEXT:  )
+ ;; CHECK-TEXT-NEXT: )
+ ;; CHECK-BIN:      (func $k (type $6) (result (ref $ct1))
+ ;; CHECK-BIN-NEXT:  (unreachable)
+ ;; CHECK-BIN-NEXT: )
+ (func $k (result (ref $ct1))
+  (cont.bind $ct1 $ct1
+   (unreachable)
+  )
+ )
 )
 ;; CHECK-BIN-NODEBUG:      (type $0 (func (param i32 i64 i32) (result i32)))
 
@@ -83,6 +104,8 @@
 
 ;; CHECK-BIN-NODEBUG:      (type $5 (func (param (ref $1)) (result (ref $1))))
 
+;; CHECK-BIN-NODEBUG:      (type $6 (func (result (ref $1))))
+
 ;; CHECK-BIN-NODEBUG:      (func $0 (type $4) (param $0 (ref $1)) (result (ref $3))
 ;; CHECK-BIN-NODEBUG-NEXT:  (cont.bind $1 $3
 ;; CHECK-BIN-NODEBUG-NEXT:   (i32.const 123)
@@ -95,4 +118,8 @@
 ;; CHECK-BIN-NODEBUG-NEXT:  (cont.bind $1 $1
 ;; CHECK-BIN-NODEBUG-NEXT:   (local.get $0)
 ;; CHECK-BIN-NODEBUG-NEXT:  )
+;; CHECK-BIN-NODEBUG-NEXT: )
+
+;; CHECK-BIN-NODEBUG:      (func $2 (type $6) (result (ref $1))
+;; CHECK-BIN-NODEBUG-NEXT:  (unreachable)
 ;; CHECK-BIN-NODEBUG-NEXT: )

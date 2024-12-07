@@ -116,9 +116,9 @@
 ;; CHECK-NEXT:
 ;; CHECK-NEXT:   --disable-multimemory                Disable multimemory
 ;; CHECK-NEXT:
-;; CHECK-NEXT:   --enable-typed-continuations         Enable typed continuations
+;; CHECK-NEXT:   --enable-stack-switching             Enable stack switching
 ;; CHECK-NEXT:
-;; CHECK-NEXT:   --disable-typed-continuations        Disable typed continuations
+;; CHECK-NEXT:   --disable-stack-switching            Disable stack switching
 ;; CHECK-NEXT:
 ;; CHECK-NEXT:   --enable-shared-everything           Enable shared-everything threads
 ;; CHECK-NEXT:

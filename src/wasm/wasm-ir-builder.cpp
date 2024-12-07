@@ -648,6 +648,35 @@ public:
     ConstraintCollector{builder, children}.visitTupleExtract(curr, arity);
     return popConstrainedChildren(children);
   }
+
+  Result<> visitContBind(ContBind* curr,
+                         std::optional<HeapType> src = std::nullopt,
+                         std::optional<HeapType> dest = std::nullopt) {
+    std::vector<Child> children;
+    ConstraintCollector{builder, children}.visitContBind(curr, src, dest);
+    return popConstrainedChildren(children);
+  }
+
+  Result<> visitResume(Resume* curr,
+                       std::optional<HeapType> ct = std::nullopt) {
+    std::vector<Child> children;
+    ConstraintCollector{builder, children}.visitResume(curr, ct);
+    return popConstrainedChildren(children);
+  }
+
+  Result<> visitResumeThrow(ResumeThrow* curr,
+                            std::optional<HeapType> ct = std::nullopt) {
+    std::vector<Child> children;
+    ConstraintCollector{builder, children}.visitResumeThrow(curr, ct);
+    return popConstrainedChildren(children);
+  }
+
+  Result<> visitStackSwitch(StackSwitch* curr,
+                            std::optional<HeapType> ct = std::nullopt) {
+    std::vector<Child> children;
+    ConstraintCollector{builder, children}.visitStackSwitch(curr, ct);
+    return popConstrainedChildren(children);
+  }
 };
 
 Result<> IRBuilder::visit(Expression* curr) {
@@ -1950,65 +1979,40 @@ Result<> IRBuilder::makeStringSliceWTF() {
   return Ok{};
 }
 
-Result<> IRBuilder::makeContBind(HeapType contTypeBefore,
-                                 HeapType contTypeAfter) {
-  if (!contTypeBefore.isContinuation() || !contTypeAfter.isContinuation()) {
-    return Err{"expected continuation types"};
-  }
-  ContBind curr(wasm.allocator);
-  curr.contTypeBefore = contTypeBefore;
-  curr.contTypeAfter = contTypeAfter;
-  size_t paramsBefore =
-    contTypeBefore.getContinuation().type.getSignature().params.size();
-  size_t paramsAfter =
-    contTypeAfter.getContinuation().type.getSignature().params.size();
-  if (paramsBefore < paramsAfter) {
-    return Err{"incompatible continuation types in cont.bind: source type " +
-               contTypeBefore.toString() +
-               " has fewer parameters than destination " +
-               contTypeAfter.toString()};
-  }
-  curr.operands.resize(paramsBefore - paramsAfter);
-  CHECK_ERR(visitContBind(&curr));
-
-  std::vector<Expression*> operands(curr.operands.begin(), curr.operands.end());
-  push(
-    builder.makeContBind(contTypeBefore, contTypeAfter, operands, curr.cont));
-  return Ok{};
-}
-
-Result<> IRBuilder::makeContNew(HeapType ct) {
-  if (!ct.isContinuation()) {
+Result<> IRBuilder::makeContNew(HeapType type) {
+  if (!type.isContinuation()) {
     return Err{"expected continuation type"};
   }
   ContNew curr;
-  curr.contType = ct;
+  curr.type = Type(type, NonNullable);
   CHECK_ERR(visitContNew(&curr));
 
-  push(builder.makeContNew(ct, curr.func));
+  push(builder.makeContNew(type, curr.func));
   return Ok{};
 }
 
-Result<> IRBuilder::makeResume(HeapType ct,
-                               const std::vector<Name>& tags,
-                               const std::vector<Index>& labels) {
-  if (!ct.isContinuation()) {
-    return Err{"expected continuation type"};
+Result<> IRBuilder::makeContBind(HeapType sourceType, HeapType targetType) {
+  if (!sourceType.isContinuation() || !targetType.isContinuation()) {
+    return Err{"expected continuation types"};
   }
-  Resume curr(wasm.allocator);
-  curr.contType = ct;
-  curr.operands.resize(ct.getContinuation().type.getSignature().params.size());
-  CHECK_ERR(visitResume(&curr));
+  ContBind curr(wasm.allocator);
 
-  std::vector<Name> labelNames;
-  labelNames.reserve(labels.size());
-  for (auto label : labels) {
-    auto name = getLabelName(label);
-    CHECK_ERR(name);
-    labelNames.push_back(*name);
+  curr.type = Type(targetType, NonNullable);
+  size_t sourceParams =
+    sourceType.getContinuation().type.getSignature().params.size();
+  size_t targetParams =
+    targetType.getContinuation().type.getSignature().params.size();
+  if (sourceParams < targetParams) {
+    return Err{"incompatible continuation types in cont.bind: source type " +
+               sourceType.toString() + " has fewer parameters than target " +
+               targetType.toString()};
   }
-  std::vector<Expression*> operands(curr.operands.begin(), curr.operands.end());
-  push(builder.makeResume(ct, tags, labelNames, operands, curr.cont));
+  curr.operands.resize(sourceParams - targetParams);
+  CHECK_ERR(ChildPopper{*this}.visitContBind(&curr, sourceType, targetType));
+  CHECK_ERR(validateTypeAnnotation(sourceType, curr.cont));
+  CHECK_ERR(validateTypeAnnotation(targetType, &curr));
+
+  push(builder.makeContBind(targetType, std::move(curr.operands), curr.cont));
   return Ok{};
 }
 
@@ -2020,6 +2024,142 @@ Result<> IRBuilder::makeSuspend(Name tag) {
 
   std::vector<Expression*> operands(curr.operands.begin(), curr.operands.end());
   push(builder.makeSuspend(tag, operands));
+  return Ok{};
+}
+
+struct ResumeTable {
+  std::vector<Name> targets;
+  std::vector<Type> sentTypes;
+};
+
+static Result<ResumeTable>
+makeResumeTable(const std::vector<std::optional<Index>>& labels,
+                std::function<Result<Name>(Index)> getLabelName,
+                std::function<Result<Type>(Index)> getLabelType) {
+  std::vector<Name> targets;
+  targets.reserve(labels.size());
+
+  std::vector<Type> sentTypes;
+  sentTypes.reserve(sentTypes.size());
+
+  for (Index i = 0; i < labels.size(); i++) {
+    Name target;
+    Type sentType;
+    if (labels[i].has_value()) {
+      // (on $tag $label) clause
+      Index labelIndex = labels[i].value();
+      Result<Name> name = getLabelName(labelIndex);
+      CHECK_ERR(name);
+      target = *name;
+
+      Result<Type> targetType = getLabelType(labelIndex);
+      CHECK_ERR(targetType);
+      if (targetType->isContinuation()) {
+        sentType = *targetType;
+      } else if (targetType->isTuple() &&
+                 targetType->getTuple().back().isContinuation()) {
+        // The continuation type is expected to be the last element of
+        // a multi-valued block.
+        sentType = *targetType;
+      } else {
+        return Err{"expected continuation type"};
+      }
+    } else {
+      // (on $tag switch) clause
+      target = Name();
+      sentType = Type::none;
+    }
+    targets.push_back(target);
+    sentTypes.push_back(sentType);
+  }
+  return ResumeTable{std::move(targets), std::move(sentTypes)};
+}
+
+Result<>
+IRBuilder::makeResume(HeapType ct,
+                      const std::vector<Name>& tags,
+                      const std::vector<std::optional<Index>>& labels) {
+  if (tags.size() != labels.size()) {
+    return Err{"the sizes of tags and labels must be equal"};
+  }
+  if (!ct.isContinuation()) {
+    return Err{"expected continuation type"};
+  }
+
+  Resume curr(wasm.allocator);
+  auto contSig = ct.getContinuation().type.getSignature();
+  curr.operands.resize(contSig.params.size());
+
+  Result<ResumeTable> resumetable = makeResumeTable(
+    labels,
+    [this](Index i) { return this->getLabelName(i); },
+    [this](Index i) { return this->getLabelType(i); });
+  CHECK_ERR(resumetable);
+  CHECK_ERR(ChildPopper{*this}.visitResume(&curr, ct));
+  CHECK_ERR(validateTypeAnnotation(ct, curr.cont));
+
+  push(builder.makeResume(tags,
+                          resumetable->targets,
+                          resumetable->sentTypes,
+                          std::move(curr.operands),
+                          curr.cont));
+
+  return Ok{};
+}
+
+Result<>
+IRBuilder::makeResumeThrow(HeapType ct,
+                           Name tag,
+                           const std::vector<Name>& tags,
+                           const std::vector<std::optional<Index>>& labels) {
+  if (tags.size() != labels.size()) {
+    return Err{"the sizes of tags and labels must be equal"};
+  }
+  if (!ct.isContinuation()) {
+    return Err{"expected continuation type"};
+  }
+
+  ResumeThrow curr(wasm.allocator);
+  curr.tag = tag;
+  curr.operands.resize(wasm.getTag(tag)->sig.params.size());
+
+  Result<ResumeTable> resumetable = makeResumeTable(
+    labels,
+    [this](Index i) { return this->getLabelName(i); },
+    [this](Index i) { return this->getLabelType(i); });
+  CHECK_ERR(resumetable);
+  CHECK_ERR(ChildPopper{*this}.visitResumeThrow(&curr, ct));
+  CHECK_ERR(validateTypeAnnotation(ct, curr.cont));
+
+  push(builder.makeResumeThrow(tag,
+                               tags,
+                               resumetable->targets,
+                               resumetable->sentTypes,
+                               std::move(curr.operands),
+                               curr.cont));
+  return Ok{};
+}
+
+Result<> IRBuilder::makeStackSwitch(HeapType ct, Name tag) {
+  if (!ct.isContinuation()) {
+    return Err{"expected continuation type"};
+  }
+  StackSwitch curr(wasm.allocator);
+  curr.tag = tag;
+  auto nparams = ct.getContinuation().type.getSignature().params.size();
+  if (nparams < 1) {
+    return Err{"arity mismatch: the continuation argument must have, at least, "
+               "unary arity"};
+  }
+
+  // The continuation argument of the continuation is synthetic,
+  // i.e. it is provided by the runtime.
+  curr.operands.resize(nparams - 1);
+
+  CHECK_ERR(ChildPopper{*this}.visitStackSwitch(&curr, ct));
+  CHECK_ERR(validateTypeAnnotation(ct, curr.cont));
+
+  push(builder.makeStackSwitch(tag, std::move(curr.operands), curr.cont));
   return Ok{};
 }
 

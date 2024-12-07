@@ -349,6 +349,8 @@ struct NullInstrParserCtx {
   using ExprT = Ok;
   using CatchT = Ok;
   using CatchListT = Ok;
+  using OnClauseT = Ok;
+  using OnClauseListT = Ok;
   using TagLabelListT = Ok;
 
   using FieldIdxT = Ok;
@@ -442,8 +444,10 @@ struct NullInstrParserCtx {
     return Ok{};
   }
 
-  TagLabelListT makeTagLabelList() { return Ok{}; }
-  void appendTagLabel(TagLabelListT&, TagIdxT, LabelIdxT) {}
+  OnClauseListT makeOnClauseList() { return Ok{}; }
+  void appendOnClause(OnClauseListT&, OnClauseT) {}
+  OnClauseT makeOnLabel(TagIdxT, LabelIdxT) { return Ok{}; }
+  OnClauseT makeOnSwitch(TagIdxT) { return Ok{}; }
 
   void setSrcLoc(const std::vector<Annotation>&) {}
 
@@ -840,12 +844,15 @@ struct NullInstrParserCtx {
     return Ok{};
   }
   template<typename HeapTypeT>
+  Result<> makeContNew(Index, const std::vector<Annotation>&, HeapTypeT) {
+    return Ok{};
+  }
+  template<typename HeapTypeT>
   Result<>
   makeContBind(Index, const std::vector<Annotation>&, HeapTypeT, HeapTypeT) {
     return Ok{};
   }
-  template<typename HeapTypeT>
-  Result<> makeContNew(Index, const std::vector<Annotation>&, HeapTypeT) {
+  Result<> makeSuspend(Index, const std::vector<Annotation>&, TagIdxT) {
     return Ok{};
   }
   template<typename HeapTypeT>
@@ -855,7 +862,17 @@ struct NullInstrParserCtx {
                       const TagLabelListT&) {
     return Ok{};
   }
-  Result<> makeSuspend(Index, const std::vector<Annotation>&, TagIdxT) {
+  template<typename HeapTypeT>
+  Result<> makeResumeThrow(Index,
+                           const std::vector<Annotation>&,
+                           HeapTypeT,
+                           TagIdxT,
+                           const TagLabelListT&) {
+    return Ok{};
+  }
+  template<typename HeapTypeT>
+  Result<>
+  makeStackSwitch(Index, const std::vector<Annotation>&, HeapTypeT, TagIdxT) {
     return Ok{};
   }
 };
@@ -1387,6 +1404,9 @@ struct ParseDefsCtx : TypeParserCtx<ParseDefsCtx> {
 
   using TagLabelListT = std::vector<std::pair<TagIdxT, LabelIdxT>>;
 
+  struct OnClauseInfo;
+  using OnClauseListT = std::vector<OnClauseInfo>;
+
   Lexer in;
 
   Module& wasm;
@@ -1486,9 +1506,20 @@ struct ParseDefsCtx : TypeParserCtx<ParseDefsCtx> {
   CatchInfo makeCatchAll(Index label) { return {{}, label, false}; }
   CatchInfo makeCatchAllRef(Index label) { return {{}, label, true}; }
 
-  TagLabelListT makeTagLabelList() { return {}; }
-  void appendTagLabel(TagLabelListT& tagLabels, Name tag, Index label) {
-    tagLabels.push_back({tag, label});
+  struct OnClauseInfo {
+    Name tag;
+    Index label; // unset when isOnSwitch = true.
+    bool isOnSwitch;
+  };
+
+  OnClauseInfo makeOnLabel(Name tag, Index label) {
+    return {tag, label, false};
+  }
+  OnClauseInfo makeOnSwitch(Name tag) { return {tag, {}, true}; }
+
+  OnClauseListT makeOnClauseList() { return {}; }
+  void appendOnClause(std::vector<OnClauseInfo>& list, OnClauseInfo info) {
+    list.push_back(info);
   }
 
   Result<HeapTypeT> getHeapTypeFromIdx(Index idx) {
@@ -2593,37 +2624,68 @@ struct ParseDefsCtx : TypeParserCtx<ParseDefsCtx> {
     return withLoc(pos, irBuilder.makeStringSliceWTF());
   }
 
-  Result<> makeContBind(Index pos,
-                        const std::vector<Annotation>& annotations,
-                        HeapType contTypeBefore,
-                        HeapType contTypeAfter) {
-    return withLoc(pos, irBuilder.makeContBind(contTypeBefore, contTypeAfter));
-  }
-
   Result<> makeContNew(Index pos,
                        const std::vector<Annotation>& annotations,
                        HeapType type) {
     return withLoc(pos, irBuilder.makeContNew(type));
   }
 
-  Result<> makeResume(Index pos,
-                      const std::vector<Annotation>& annotations,
-                      HeapType type,
-                      const TagLabelListT& tagLabels) {
-    std::vector<Name> tags;
-    std::vector<Index> labels;
-    tags.reserve(tagLabels.size());
-    labels.reserve(tagLabels.size());
-    for (auto& [tag, label] : tagLabels) {
-      tags.push_back(tag);
-      labels.push_back(label);
-    }
-    return withLoc(pos, irBuilder.makeResume(type, tags, labels));
+  Result<> makeContBind(Index pos,
+                        const std::vector<Annotation>& annotations,
+                        HeapType sourceType,
+                        HeapType targetType) {
+    return withLoc(pos, irBuilder.makeContBind(sourceType, targetType));
   }
 
   Result<>
   makeSuspend(Index pos, const std::vector<Annotation>& annotations, Name tag) {
     return withLoc(pos, irBuilder.makeSuspend(tag));
+  }
+
+  Result<> makeResume(Index pos,
+                      const std::vector<Annotation>& annotations,
+                      HeapType type,
+                      const std::vector<OnClauseInfo>& resumetable) {
+    std::vector<Name> tags;
+    std::vector<std::optional<Index>> labels;
+    tags.reserve(resumetable.size());
+    labels.reserve(resumetable.size());
+    for (const OnClauseInfo& info : resumetable) {
+      tags.push_back(info.tag);
+      if (info.isOnSwitch) {
+        labels.push_back(std::nullopt);
+      } else {
+        labels.push_back(std::optional<Index>(info.label));
+      }
+    }
+    return withLoc(pos, irBuilder.makeResume(type, tags, labels));
+  }
+
+  Result<> makeResumeThrow(Index pos,
+                           const std::vector<Annotation>& annotations,
+                           HeapType type,
+                           Name tag,
+                           const std::vector<OnClauseInfo>& resumetable) {
+    std::vector<Name> tags;
+    std::vector<std::optional<Index>> labels;
+    tags.reserve(resumetable.size());
+    labels.reserve(resumetable.size());
+    for (const OnClauseInfo& info : resumetable) {
+      tags.push_back(info.tag);
+      if (info.isOnSwitch) {
+        labels.push_back(std::nullopt);
+      } else {
+        labels.push_back(std::optional<Index>(info.label));
+      }
+    }
+    return withLoc(pos, irBuilder.makeResumeThrow(type, tag, tags, labels));
+  }
+
+  Result<> makeStackSwitch(Index pos,
+                           const std::vector<Annotation>& annotations,
+                           HeapType type,
+                           Name tag) {
+    return withLoc(pos, irBuilder.makeStackSwitch(type, tag));
   }
 };
 

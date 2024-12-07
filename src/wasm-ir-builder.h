@@ -226,12 +226,17 @@ public:
   Result<> makeStringWTF16Get();
   Result<> makeStringIterNext();
   Result<> makeStringSliceWTF();
-  Result<> makeContBind(HeapType contTypeBefore, HeapType contTypeAfter);
   Result<> makeContNew(HeapType ct);
+  Result<> makeContBind(HeapType sourceType, HeapType targetType);
+  Result<> makeSuspend(Name tag);
   Result<> makeResume(HeapType ct,
                       const std::vector<Name>& tags,
-                      const std::vector<Index>& labels);
-  Result<> makeSuspend(Name tag);
+                      const std::vector<std::optional<Index>>& labels);
+  Result<> makeResumeThrow(HeapType ct,
+                           Name tag,
+                           const std::vector<Name>& tags,
+                           const std::vector<std::optional<Index>>& labels);
+  Result<> makeStackSwitch(HeapType ct, Name tag);
 
   // Private functions that must be public for technical reasons.
   Result<> visitExpression(Expression*);

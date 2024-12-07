@@ -596,11 +596,13 @@ instructions = [
     # Typed function references instructions
     ("call_ref",             "makeCallRef(/*isReturn=*/false)"),
     ("return_call_ref",      "makeCallRef(/*isReturn=*/true)"),
-    # Typed continuations instructions
+    # Stack switching instructions
     ("cont.new",             "makeContNew()"),
     ("cont.bind",            "makeContBind()"),
-    ("resume",               "makeResume()"),
     ("suspend",              "makeSuspend()"),
+    ("resume",               "makeResume()"),
+    ("resume_throw",         "makeResumeThrow()"),
+    ("switch",               "makeStackSwitch()"),
     # GC
     ("ref.i31",              "makeRefI31(Unshared)"),
     ("ref.i31_shared",       "makeRefI31(Shared)"),

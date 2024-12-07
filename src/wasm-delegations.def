@@ -101,9 +101,11 @@ DELEGATE(StringConcat);
 DELEGATE(StringEq);
 DELEGATE(StringWTF16Get);
 DELEGATE(StringSliceWTF);
-DELEGATE(ContBind);
 DELEGATE(ContNew);
-DELEGATE(Resume);
+DELEGATE(ContBind);
 DELEGATE(Suspend);
+DELEGATE(Resume);
+DELEGATE(ResumeThrow);
+DELEGATE(StackSwitch);
 
 #undef DELEGATE

@@ -103,7 +103,7 @@ struct ToolOptions : public Options {
       .addFeature(FeatureSet::ExtendedConst, "extended const expressions")
       .addFeature(FeatureSet::Strings, "strings")
       .addFeature(FeatureSet::MultiMemory, "multimemory")
-      .addFeature(FeatureSet::TypedContinuations, "typed continuations")
+      .addFeature(FeatureSet::StackSwitching, "stack switching")
       .addFeature(FeatureSet::SharedEverything, "shared-everything threads")
       .addFeature(FeatureSet::FP16, "float 16 operations")
       .add("--enable-typed-function-references",

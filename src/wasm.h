@@ -736,10 +736,13 @@ public:
     StringEqId,
     StringWTF16GetId,
     StringSliceWTFId,
-    ContBindId,
     ContNewId,
-    ResumeId,
+    ContBindId,
     SuspendId,
+    ResumeId,
+    ResumeThrowId,
+    // Id for the stack switching `switch`
+    StackSwitchId,
     NumExpressionIds
   };
   Id _id;
@@ -1922,53 +1925,24 @@ public:
   void finalize();
 };
 
-class ContBind : public SpecificExpression<Expression::ContBindId> {
-public:
-  ContBind(MixedArena& allocator) : operands(allocator) {}
-
-  HeapType contTypeBefore;
-  HeapType contTypeAfter;
-  ExpressionList operands;
-  Expression* cont;
-
-  void finalize();
-};
-
 class ContNew : public SpecificExpression<Expression::ContNewId> {
 public:
   ContNew() = default;
   ContNew(MixedArena& allocator) {}
 
-  HeapType contType;
   Expression* func;
 
   void finalize();
 };
 
-class Resume : public SpecificExpression<Expression::ResumeId> {
+class ContBind : public SpecificExpression<Expression::ContBindId> {
 public:
-  Resume(MixedArena& allocator)
-    : handlerTags(allocator), handlerBlocks(allocator), operands(allocator),
-      sentTypes(allocator) {}
-
-  HeapType contType;
-  ArenaVector<Name> handlerTags;
-  ArenaVector<Name> handlerBlocks;
+  ContBind(MixedArena& allocator) : operands(allocator) {}
 
   ExpressionList operands;
   Expression* cont;
 
-  // When 'Module*' parameter is given, we populate the 'sentTypes' array, so
-  // that the types can be accessed in other analyses without accessing the
-  // module.
-  void finalize(Module* wasm = nullptr);
-
-  // sentTypes[i] contains the type of the values that will be sent to the block
-  // handlerBlocks[i] if suspending with tag handlerTags[i]. Not part of the
-  // instruction's syntax, but stored here for subsequent use.
-  // This information is cached here in order not to query the module
-  // every time we query the sent types.
-  ArenaVector<Type> sentTypes;
+  void finalize();
 };
 
 class Suspend : public SpecificExpression<Expression::SuspendId> {
@@ -1982,6 +1956,73 @@ public:
   // which determines this node's type.
   // If no module is given, then the type must have been set already.
   void finalize(Module* wasm = nullptr);
+};
+
+class Resume : public SpecificExpression<Expression::ResumeId> {
+public:
+  Resume(MixedArena& allocator)
+    : handlerTags(allocator), handlerBlocks(allocator), operands(allocator),
+      sentTypes(allocator) {}
+
+  // The following two vectors are to be understood together
+  // pointwise. That is, the ith component of each vector together
+  // classifies an on-clause `(on $tag $label)` or `(on $tag
+  // switch)`. The first vector stores reifies the `$tag` bit of the
+  // aforementioned syntax...
+  ArenaVector<Name> handlerTags;
+  // ... whilst this vector reifies the `$label` bit of the
+  // syntax. For `switch` clauses the ith component will be the Empty
+  // name (i.e. `Name()`).
+  ArenaVector<Name> handlerBlocks;
+
+  ExpressionList operands;
+  Expression* cont;
+
+  void finalize();
+
+  // sentTypes[i] contains the type of the values that will be sent to the block
+  // handlerBlocks[i] if suspending with tag handlerTags[i]. Not part of the
+  // instruction's syntax, but stored here for subsequent use.
+  // This information is cached here in order not to query the module
+  // every time we query the sent types.
+  ArenaVector<Type> sentTypes;
+};
+
+class ResumeThrow : public SpecificExpression<Expression::ResumeThrowId> {
+public:
+  ResumeThrow(MixedArena& allocator)
+    : handlerTags(allocator), handlerBlocks(allocator), operands(allocator),
+      sentTypes(allocator) {}
+
+  Name tag;
+  // See the comment on `Resume` above.
+  ArenaVector<Name> handlerTags;
+  ArenaVector<Name> handlerBlocks;
+
+  ExpressionList operands;
+  Expression* cont;
+
+  void finalize();
+
+  // sentTypes[i] contains the type of the values that will be sent to the block
+  // handlerBlocks[i] if suspending with tag handlerTags[i]. Not part of the
+  // instruction's syntax, but stored here for subsequent use.
+  // This information is cached here in order not to query the module
+  // every time we query the sent types.
+  ArenaVector<Type> sentTypes;
+};
+
+class StackSwitch : public SpecificExpression<Expression::StackSwitchId> {
+public:
+  StackSwitch(MixedArena& allocator) : operands(allocator) {}
+
+  Name tag;
+
+  ExpressionList operands;
+  Expression* cont;
+
+  // We need access to the module to obtain the signature of the tag.
+  void finalize();
 };
 
 // Globals

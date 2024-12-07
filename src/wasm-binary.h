@@ -393,7 +393,7 @@ extern const char* RelaxedSIMDFeature;
 extern const char* ExtendedConstFeature;
 extern const char* StringsFeature;
 extern const char* MultiMemoryFeature;
-extern const char* TypedContinuationsFeature;
+extern const char* StackSwitchingFeature;
 extern const char* SharedEverythingFeature;
 extern const char* FP16Feature;
 extern const char* BulkMemoryOptFeature;
@@ -1144,12 +1144,17 @@ enum ASTNodes {
   StringNewLossyUTF8Array = 0xb4,
   StringEncodeLossyUTF8Array = 0xb6,
 
-  // typed continuation opcodes
+  // stack switching opcodes
   ContNew = 0xe0,
   ContBind = 0xe1,
   Suspend = 0xe2,
   Resume = 0xe3,
-
+  ResumeThrow = 0xe4,
+  Switch = 0xe5,  // NOTE(dhil): the internal class is known as
+                  // StackSwitch to avoid conflict with the existing
+                  // 'switch table'.
+  OnLabel = 0x00, // (on $tag $label)
+  OnSwitch = 0x01 // (on $tag switch)
 };
 
 enum MemoryAccess {

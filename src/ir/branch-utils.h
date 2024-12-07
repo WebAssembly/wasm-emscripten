@@ -85,7 +85,14 @@ void operateOnScopeNameUsesAndSentTypes(Expression* expr, T func) {
     } else if (auto* r = expr->dynCast<Resume>()) {
       for (Index i = 0; i < r->handlerTags.size(); i++) {
         auto dest = r->handlerTags[i];
-        if (dest == name) {
+        if (!dest.isNull() && dest == name) {
+          func(name, r->sentTypes[i]);
+        }
+      }
+    } else if (auto* r = expr->dynCast<ResumeThrow>()) {
+      for (Index i = 0; i < r->handlerTags.size(); i++) {
+        auto dest = r->handlerTags[i];
+        if (!dest.isNull() && dest == name) {
           func(name, r->sentTypes[i]);
         }
       }
@@ -117,6 +124,8 @@ void operateOnScopeNameUsesAndSentValues(Expression* expr, T func) {
     } else if (expr->is<Resume>()) {
       // The values are supplied by suspend instructions executed while running
       // the continuation, so we are unable to know what they will be here.
+      func(name, nullptr);
+    } else if (expr->is<ResumeThrow>()) {
       func(name, nullptr);
     } else {
       assert(expr->is<Try>() || expr->is<Rethrow>()); // delegate or rethrow

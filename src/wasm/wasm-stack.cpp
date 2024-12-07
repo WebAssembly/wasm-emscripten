@@ -2608,31 +2608,70 @@ void BinaryInstWriter::visitStringSliceWTF(StringSliceWTF* curr) {
     << U32LEB(BinaryConsts::StringViewWTF16Slice);
 }
 
-void BinaryInstWriter::visitContBind(ContBind* curr) {
-  o << int8_t(BinaryConsts::ContBind);
-  parent.writeIndexedHeapType(curr->contTypeBefore);
-  parent.writeIndexedHeapType(curr->contTypeAfter);
-}
-
 void BinaryInstWriter::visitContNew(ContNew* curr) {
   o << int8_t(BinaryConsts::ContNew);
-  parent.writeIndexedHeapType(curr->contType);
-}
-
-void BinaryInstWriter::visitResume(Resume* curr) {
-  o << int8_t(BinaryConsts::Resume);
-  parent.writeIndexedHeapType(curr->contType);
-
-  size_t handlerNum = curr->handlerTags.size();
-  o << U32LEB(handlerNum);
-  for (size_t i = 0; i < handlerNum; i++) {
-    o << U32LEB(parent.getTagIndex(curr->handlerTags[i]))
-      << U32LEB(getBreakIndex(curr->handlerBlocks[i]));
-  }
+  parent.writeIndexedHeapType(curr->type.getHeapType());
 }
 
 void BinaryInstWriter::visitSuspend(Suspend* curr) {
   o << int8_t(BinaryConsts::Suspend) << U32LEB(parent.getTagIndex(curr->tag));
+}
+
+void BinaryInstWriter::visitContBind(ContBind* curr) {
+  assert(curr->cont->type.isContinuation() && curr->type.isContinuation());
+  o << int8_t(BinaryConsts::ContBind);
+  parent.writeIndexedHeapType(curr->cont->type.getHeapType());
+  parent.writeIndexedHeapType(curr->type.getHeapType());
+}
+
+void BinaryInstWriter::visitResume(Resume* curr) {
+  assert(curr->cont->type.isContinuation());
+  o << int8_t(BinaryConsts::Resume);
+  parent.writeIndexedHeapType(curr->cont->type.getHeapType());
+
+  size_t handlerNum = curr->handlerTags.size();
+  o << U32LEB(handlerNum);
+  for (size_t i = 0; i < handlerNum; i++) {
+    if (curr->handlerBlocks[i].isNull()) {
+      // on switch
+      o << int8_t(BinaryConsts::OnSwitch)
+        << U32LEB(parent.getTagIndex(curr->handlerTags[i]));
+    } else {
+      // on label
+      o << int8_t(BinaryConsts::OnLabel)
+        << U32LEB(parent.getTagIndex(curr->handlerTags[i]))
+        << U32LEB(getBreakIndex(curr->handlerBlocks[i]));
+    }
+  }
+}
+
+void BinaryInstWriter::visitResumeThrow(ResumeThrow* curr) {
+  assert(curr->cont->type.isContinuation());
+  o << int8_t(BinaryConsts::ResumeThrow);
+  parent.writeIndexedHeapType(curr->cont->type.getHeapType());
+  o << U32LEB(parent.getTagIndex(curr->tag));
+
+  size_t handlerNum = curr->handlerTags.size();
+  o << U32LEB(handlerNum);
+  for (size_t i = 0; i < handlerNum; i++) {
+    if (curr->handlerBlocks[i].isNull()) {
+      // on switch
+      o << int8_t(BinaryConsts::OnSwitch)
+        << U32LEB(parent.getTagIndex(curr->handlerTags[i]));
+    } else {
+      // on label
+      o << int8_t(BinaryConsts::OnLabel)
+        << U32LEB(parent.getTagIndex(curr->handlerTags[i]))
+        << U32LEB(getBreakIndex(curr->handlerBlocks[i]));
+    }
+  }
+}
+
+void BinaryInstWriter::visitStackSwitch(StackSwitch* curr) {
+  assert(curr->cont->type.isContinuation());
+  o << int8_t(BinaryConsts::Switch);
+  parent.writeIndexedHeapType(curr->cont->type.getHeapType());
+  o << U32LEB(parent.getTagIndex(curr->tag));
 }
 
 void BinaryInstWriter::emitScopeEnd(Expression* curr) {

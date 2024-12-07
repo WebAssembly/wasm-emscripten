@@ -756,6 +756,10 @@ struct CostAnalyzer : public OverriddenVisitor<CostAnalyzer, CostType> {
     return 8 + visit(curr->ref) + visit(curr->start) + visit(curr->end);
   }
 
+  CostType visitContNew(ContNew* curr) {
+    // Some arbitrary "high" value, reflecting that this may allocate a stack
+    return 14 + visit(curr->func);
+  }
   CostType visitContBind(ContBind* curr) {
     // Inspired by struct.new: The only cost of cont.bind is that it may need to
     // allocate a buffer to hold the arguments.
@@ -766,9 +770,12 @@ struct CostAnalyzer : public OverriddenVisitor<CostAnalyzer, CostType> {
     }
     return ret;
   }
-  CostType visitContNew(ContNew* curr) {
-    // Some arbitrary "high" value, reflecting that this may allocate a stack
-    return 14 + visit(curr->func);
+  CostType visitSuspend(Suspend* curr) {
+    CostType ret = 12;
+    for (auto* arg : curr->operands) {
+      ret += visit(arg);
+    }
+    return ret;
   }
   CostType visitResume(Resume* curr) {
     // Inspired by indirect calls, but twice the cost.
@@ -778,8 +785,17 @@ struct CostAnalyzer : public OverriddenVisitor<CostAnalyzer, CostType> {
     }
     return ret;
   }
-  CostType visitSuspend(Suspend* curr) {
-    CostType ret = 12;
+  CostType visitResumeThrow(ResumeThrow* curr) {
+    // Inspired by indirect calls, but twice the cost.
+    CostType ret = 12 + visit(curr->cont);
+    for (auto* arg : curr->operands) {
+      ret += visit(arg);
+    }
+    return ret;
+  }
+  CostType visitStackSwitch(StackSwitch* curr) {
+    // Inspired by indirect calls, but twice the cost.
+    CostType ret = 12 + visit(curr->cont);
     for (auto* arg : curr->operands) {
       ret += visit(arg);
     }

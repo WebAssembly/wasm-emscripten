@@ -309,7 +309,7 @@ struct PrintSExpression : public UnifiedExpressionVisitor<PrintSExpression> {
   void visitLoop(Loop* curr);
   void visitTry(Try* curr);
   void visitTryTable(TryTable* curr);
-  void visitResume(Resume* curr);
+
   bool maybePrintUnreachableReplacement(Expression* curr, Type type);
   bool maybePrintUnreachableOrNullReplacement(Expression* curr, Type type);
   void visitCallRef(CallRef* curr) {
@@ -385,6 +385,35 @@ struct PrintSExpression : public UnifiedExpressionVisitor<PrintSExpression> {
   }
   void visitArrayInitElem(ArrayInitElem* curr) {
     if (!maybePrintUnreachableOrNullReplacement(curr, curr->ref->type)) {
+      visitExpression(curr);
+    }
+  }
+  void visitContNew(ContNew* curr) {
+    if (!maybePrintUnreachableReplacement(curr, curr->type)) {
+      visitExpression(curr);
+    }
+  }
+  void visitContBind(ContBind* curr) {
+    if (!maybePrintUnreachableOrNullReplacement(curr, curr->cont->type) &&
+        !maybePrintUnreachableOrNullReplacement(curr, curr->type)) {
+      visitExpression(curr);
+    }
+  }
+  void visitResume(Resume* curr) {
+    if (!maybePrintUnreachableOrNullReplacement(curr, curr->cont->type) &&
+        !maybePrintUnreachableOrNullReplacement(curr, curr->type)) {
+      visitExpression(curr);
+    }
+  }
+  void visitResumeThrow(ResumeThrow* curr) {
+    if (!maybePrintUnreachableOrNullReplacement(curr, curr->cont->type) &&
+        !maybePrintUnreachableOrNullReplacement(curr, curr->type)) {
+      visitExpression(curr);
+    }
+  }
+  void visitStackSwitch(StackSwitch* curr) {
+    if (!maybePrintUnreachableOrNullReplacement(curr, curr->cont->type) &&
+        !maybePrintUnreachableOrNullReplacement(curr, curr->type)) {
       visitExpression(curr);
     }
   }
@@ -2453,35 +2482,66 @@ struct PrintExpressionContents
   void visitStringSliceWTF(StringSliceWTF* curr) {
     printMedium(o, "stringview_wtf16.slice");
   }
-  void visitContBind(ContBind* curr) {
-    printMedium(o, "cont.bind ");
-    printHeapType(curr->contTypeBefore);
-    o << ' ';
-    printHeapType(curr->contTypeAfter);
-  }
   void visitContNew(ContNew* curr) {
+    assert(curr->type.isContinuation());
     printMedium(o, "cont.new ");
-    printHeapType(curr->contType);
+    printHeapType(curr->type.getHeapType());
   }
-
-  void visitResume(Resume* curr) {
-    printMedium(o, "resume");
-
+  void visitContBind(ContBind* curr) {
+    assert(curr->cont->type.isContinuation() && curr->type.isContinuation());
+    printMedium(o, "cont.bind ");
+    printHeapType(curr->cont->type.getHeapType());
     o << ' ';
-    printHeapType(curr->contType);
-
+    printHeapType(curr->type.getHeapType());
+  }
+  void visitSuspend(Suspend* curr) {
+    printMedium(o, "suspend ");
+    curr->tag.print(o);
+  }
+  template<typename ResumeType>
+  static void handleResumeTable(std::ostream& o, ResumeType* curr) {
+    static_assert(std::is_base_of<ResumeType, Resume>::value ||
+                  std::is_base_of<ResumeType, ResumeThrow>::value);
     for (Index i = 0; i < curr->handlerTags.size(); i++) {
       o << " (";
       printMedium(o, "on ");
       curr->handlerTags[i].print(o);
       o << ' ';
-      curr->handlerBlocks[i].print(o);
+      if (curr->handlerBlocks[i].isNull()) {
+        o << "switch";
+      } else {
+        curr->handlerBlocks[i].print(o);
+      }
       o << ')';
     }
   }
+  void visitResume(Resume* curr) {
+    assert(curr->cont->type.isContinuation());
+    printMedium(o, "resume");
 
-  void visitSuspend(Suspend* curr) {
-    printMedium(o, "suspend ");
+    o << ' ';
+    printHeapType(curr->cont->type.getHeapType());
+
+    handleResumeTable(o, curr);
+  }
+  void visitResumeThrow(ResumeThrow* curr) {
+    assert(curr->cont->type.isContinuation());
+    printMedium(o, "resume_throw");
+
+    o << ' ';
+    printHeapType(curr->cont->type.getHeapType());
+    o << ' ';
+    curr->tag.print(o);
+
+    handleResumeTable(o, curr);
+  }
+  void visitStackSwitch(StackSwitch* curr) {
+    assert(curr->cont->type.isContinuation());
+    printMedium(o, "switch");
+
+    o << ' ';
+    printHeapType(curr->cont->type.getHeapType());
+    o << ' ';
     curr->tag.print(o);
   }
 };
@@ -2775,7 +2835,7 @@ void PrintSExpression::visitLoop(Loop* curr) {
 // The parenthesis wrapping do/catch/catch_all is just a syntax and does not
 // affect nested depths of instructions within.
 //
-// try-delegate is written in the forded format as
+// try-delegate is written in the folded format as
 // (try
 //  (do
 //    ...
@@ -2847,23 +2907,6 @@ void PrintSExpression::visitTryTable(TryTable* curr) {
     o << " ;; end try_table";
   }
   controlFlowDepth--;
-}
-
-void PrintSExpression::visitResume(Resume* curr) {
-  controlFlowDepth++;
-  o << '(';
-  printExpressionContents(curr);
-
-  incIndent();
-
-  for (Index i = 0; i < curr->operands.size(); i++) {
-    printFullLine(curr->operands[i]);
-  }
-
-  printFullLine(curr->cont);
-
-  controlFlowDepth--;
-  decIndent();
 }
 
 bool PrintSExpression::maybePrintUnreachableReplacement(Expression* curr,

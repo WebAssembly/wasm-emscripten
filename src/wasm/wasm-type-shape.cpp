@@ -84,6 +84,7 @@ template<typename CompareTypes> struct RecGroupComparator {
       case HeapTypeKind::Array:
         return compare(a.getArray(), b.getArray());
       case HeapTypeKind::Cont:
+        assert(a.isContinuation() && b.isContinuation());
         return compare(a.getContinuation(), b.getContinuation());
       case HeapTypeKind::Basic:
         break;
@@ -237,6 +238,7 @@ struct RecGroupHasher {
         hash_combine(digest, hash(type.getArray()));
         return digest;
       case HeapTypeKind::Cont:
+        assert(type.isContinuation());
         wasm::rehash(digest, 2381496927);
         hash_combine(digest, hash(type.getContinuation()));
         return digest;

@@ -871,10 +871,12 @@ struct TransferFn : OverriddenVisitor<TransferFn> {
   void visitStringWTF16Get(StringWTF16Get* curr) { WASM_UNREACHABLE("TODO"); }
   void visitStringSliceWTF(StringSliceWTF* curr) { WASM_UNREACHABLE("TODO"); }
 
-  void visitContBind(ContBind* curr) { WASM_UNREACHABLE("TODO"); }
   void visitContNew(ContNew* curr) { WASM_UNREACHABLE("TODO"); }
-  void visitResume(Resume* curr) { WASM_UNREACHABLE("TODO"); }
+  void visitContBind(ContBind* curr) { WASM_UNREACHABLE("TODO"); }
   void visitSuspend(Suspend* curr) { WASM_UNREACHABLE("TODO"); }
+  void visitResume(Resume* curr) { WASM_UNREACHABLE("TODO"); }
+  void visitResumeThrow(ResumeThrow* curr) { WASM_UNREACHABLE("TODO"); }
+  void visitStackSwitch(StackSwitch* curr) { WASM_UNREACHABLE("TODO"); }
 };
 
 struct TypeGeneralizing : WalkerPass<PostWalker<TypeGeneralizing>> {

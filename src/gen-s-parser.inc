@@ -4807,12 +4807,23 @@ switch (buf[0]) {
           default: goto parse_error;
         }
       }
-      case 's':
-        if (op == "resume"sv) {
-          CHECK_ERR(makeResume(ctx, pos, annotations));
-          return Ok{};
+      case 's': {
+        switch (buf[6]) {
+          case '\0':
+            if (op == "resume"sv) {
+              CHECK_ERR(makeResume(ctx, pos, annotations));
+              return Ok{};
+            }
+            goto parse_error;
+          case '_':
+            if (op == "resume_throw"sv) {
+              CHECK_ERR(makeResumeThrow(ctx, pos, annotations));
+              return Ok{};
+            }
+            goto parse_error;
+          default: goto parse_error;
         }
-        goto parse_error;
+      }
       case 't': {
         switch (buf[3]) {
           case 'h':
@@ -5073,6 +5084,12 @@ switch (buf[0]) {
       case 'u':
         if (op == "suspend"sv) {
           CHECK_ERR(makeSuspend(ctx, pos, annotations));
+          return Ok{};
+        }
+        goto parse_error;
+      case 'w':
+        if (op == "switch"sv) {
+          CHECK_ERR(makeStackSwitch(ctx, pos, annotations));
           return Ok{};
         }
         goto parse_error;

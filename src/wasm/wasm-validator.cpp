@@ -508,10 +508,12 @@ public:
   void visitStringEq(StringEq* curr);
   void visitStringWTF16Get(StringWTF16Get* curr);
   void visitStringSliceWTF(StringSliceWTF* curr);
-  void visitContBind(ContBind* curr);
   void visitContNew(ContNew* curr);
-  void visitResume(Resume* curr);
+  void visitContBind(ContBind* curr);
   void visitSuspend(Suspend* curr);
+  void visitResume(Resume* curr);
+  void visitResumeThrow(ResumeThrow* curr);
+  void visitStackSwitch(StackSwitch* curr);
 
   void visitFunction(Function* curr);
 
@@ -3475,61 +3477,111 @@ void FunctionValidator::visitStringSliceWTF(StringSliceWTF* curr) {
                "string operations require reference-types [--enable-strings]");
 }
 
-void FunctionValidator::visitContBind(ContBind* curr) {
-  // TODO implement actual type-checking
-  shouldBeTrue(
-    !getModule() || getModule()->features.hasTypedContinuations(),
-    curr,
-    "cont.bind requires typed-continuatons [--enable-typed-continuations]");
-
-  shouldBeTrue((curr->contTypeBefore.isContinuation() &&
-                curr->contTypeBefore.getContinuation().type.isSignature()),
-               curr,
-               "invalid first type in ContBind expression");
-
-  shouldBeTrue((curr->contTypeAfter.isContinuation() &&
-                curr->contTypeAfter.getContinuation().type.isSignature()),
-               curr,
-               "invalid second type in ContBind expression");
-}
-
 void FunctionValidator::visitContNew(ContNew* curr) {
   // TODO implement actual type-checking
-  shouldBeTrue(
-    !getModule() || getModule()->features.hasTypedContinuations(),
-    curr,
-    "cont.new requires typed-continuatons [--enable-typed-continuations]");
-
-  shouldBeTrue((curr->contType.isContinuation() &&
-                curr->contType.getContinuation().type.isSignature()),
+  shouldBeTrue(!getModule() || getModule()->features.hasStackSwitching(),
                curr,
-               "invalid type in ContNew expression");
+               "cont.new requires stack-switching [--enable-stack-switching]");
+
+  shouldBeTrue(
+    (curr->type.isContinuation() &&
+     curr->type.getHeapType().getContinuation().type.isSignature()) ||
+      curr->type == Type::unreachable,
+    curr,
+    "cont.new must be annotated with a continuation type");
 }
 
-void FunctionValidator::visitResume(Resume* curr) {
+void FunctionValidator::visitContBind(ContBind* curr) {
   // TODO implement actual type-checking
-  shouldBeTrue(
-    !getModule() || getModule()->features.hasTypedContinuations(),
-    curr,
-    "resume requires typed-continuatons [--enable-typed-continuations]");
-
-  shouldBeTrue(
-    curr->sentTypes.size() == curr->handlerBlocks.size(),
-    curr,
-    "sentTypes cache in Resume instruction has not been initialized");
-
-  shouldBeTrue((curr->contType.isContinuation() &&
-                curr->contType.getContinuation().type.isSignature()),
+  shouldBeTrue(!getModule() || getModule()->features.hasStackSwitching(),
                curr,
-               "invalid type in Resume expression");
+               "cont.bind requires stack-switching [--enable-stack-switching]");
+
+  shouldBeTrue(
+    (curr->cont->type.isContinuation() &&
+     curr->cont->type.getHeapType().getContinuation().type.isSignature()) ||
+      curr->cont->type == Type::unreachable,
+    curr,
+    "the first type annotation on cont.bind must be a continuation type");
+
+  shouldBeTrue(
+    (curr->type.isContinuation() &&
+     curr->type.getHeapType().getContinuation().type.isSignature()) ||
+      curr->type == Type::unreachable,
+    curr,
+    "the second type annotation on cont.bind must be a continuation type");
 }
 
 void FunctionValidator::visitSuspend(Suspend* curr) {
   // TODO implement actual type-checking
+  shouldBeTrue(!getModule() || getModule()->features.hasStackSwitching(),
+               curr,
+               "suspend requires stack-switching [--enable-stack-switching]");
+}
+
+void FunctionValidator::visitResume(Resume* curr) {
+  // TODO implement actual type-checking
+  shouldBeTrue(!getModule() || getModule()->features.hasStackSwitching(),
+               curr,
+               "resume requires stack-switching [--enable-stack-switching]");
+
   shouldBeTrue(
-    !getModule() || getModule()->features.hasTypedContinuations(),
+    curr->sentTypes.size() == curr->handlerBlocks.size(),
     curr,
-    "suspend requires typed-continuations [--enable-typed-continuations]");
+    "sentTypes cache in resume instruction has not been initialized");
+
+  shouldBeTrue(
+    (curr->cont->type.isContinuation() &&
+     curr->cont->type.getHeapType().getContinuation().type.isSignature()) ||
+      curr->type == Type::unreachable,
+    curr,
+    "resume must be annotated with a continuation type");
+}
+
+void FunctionValidator::visitResumeThrow(ResumeThrow* curr) {
+  // TODO implement actual type-checking
+  shouldBeTrue(
+    !getModule() || (getModule()->features.hasExceptionHandling() &&
+                     getModule()->features.hasStackSwitching()),
+    curr,
+    "resume_throw requires exception handling [--enable-exception-handling] "
+    "and stack-switching [--enable-stack-switching]");
+
+  shouldBeTrue(
+    curr->sentTypes.size() == curr->handlerBlocks.size(),
+    curr,
+    "sentTypes cache in resume_throw instruction has not been initialized");
+
+  shouldBeTrue(
+    (curr->cont->type.isContinuation() &&
+     curr->cont->type.getHeapType().getContinuation().type.isSignature()) ||
+      curr->type == Type::unreachable,
+    curr,
+    "resume_throw must be annotated with a continuation type");
+
+  auto* tag = getModule()->getTagOrNull(curr->tag);
+  if (!shouldBeTrue(!!tag, curr, "resume_throw must be annotated with a tag")) {
+    return;
+  }
+}
+
+void FunctionValidator::visitStackSwitch(StackSwitch* curr) {
+  // TODO implement actual type-checking
+  shouldBeTrue(!getModule() || getModule()->features.hasStackSwitching(),
+               curr,
+               "switch requires stack-switching [--enable-stack-switching]");
+
+  shouldBeTrue(
+    (curr->cont->type.isContinuation() &&
+     curr->cont->type.getHeapType().getContinuation().type.isSignature()) ||
+      curr->type == Type::unreachable,
+    curr,
+    "switch must be annotated with a continuation type");
+
+  auto* tag = getModule()->getTagOrNull(curr->tag);
+  if (!shouldBeTrue(!!tag, curr, "switch must be annotated with a tag")) {
+    return;
+  }
 }
 
 void FunctionValidator::visitFunction(Function* curr) {
@@ -4033,10 +4085,10 @@ static void validateTags(Module& module, ValidationInfo& info) {
   }
   for (auto& curr : module.tags) {
     if (curr->sig.results != Type(Type::none)) {
-      info.shouldBeTrue(module.features.hasTypedContinuations(),
+      info.shouldBeTrue(module.features.hasStackSwitching(),
                         curr->name,
-                        "Tags with result types require typed continuations "
-                        "feature [--enable-typed-continuations]");
+                        "Tags with result types require stack switching "
+                        "feature [--enable-stack-switching]");
     }
     if (curr->sig.params.isTuple()) {
       info.shouldBeTrue(

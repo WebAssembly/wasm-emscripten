@@ -722,6 +722,10 @@ Type::Type(HeapType heapType, Nullability nullable) {
   new (this) Type(globalTypeStore.insert(TypeInfo(heapType, nullable)));
 }
 
+bool Type::isContinuation() const {
+  return isRef() && getHeapType().isContinuation();
+}
+
 bool Type::isStruct() const { return isRef() && getHeapType().isStruct(); }
 
 bool Type::isArray() const { return isRef() && getHeapType().isArray(); }
@@ -1421,7 +1425,7 @@ FeatureSet HeapType::getFeatures() const {
             return;
           case HeapType::cont:
           case HeapType::nocont:
-            feats |= FeatureSet::TypedContinuations;
+            feats |= FeatureSet::StackSwitching;
             return;
         }
       }
@@ -1447,7 +1451,7 @@ FeatureSet HeapType::getFeatures() const {
           feats |= FeatureSet::Multivalue;
         }
       } else if (heapType->isContinuation()) {
-        feats |= FeatureSet::TypedContinuations;
+        feats |= FeatureSet::StackSwitching;
       }
 
       // In addition, scan their non-ref children, to add dependencies on

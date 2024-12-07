@@ -54,7 +54,7 @@ const char* RelaxedSIMDFeature = "relaxed-simd";
 const char* ExtendedConstFeature = "extended-const";
 const char* StringsFeature = "strings";
 const char* MultiMemoryFeature = "multimemory";
-const char* TypedContinuationsFeature = "typed-continuations";
+const char* StackSwitchingFeature = "stack-switching";
 const char* SharedEverythingFeature = "shared-everything";
 const char* FP16Feature = "fp16";
 const char* BulkMemoryOptFeature = "bulk-memory-opt";
@@ -1352,73 +1352,20 @@ void StringSliceWTF::finalize() {
   }
 }
 
-void ContBind::finalize() {
-  if (cont->type == Type::unreachable) {
-    type = Type::unreachable;
-  } else if (!handleUnreachableOperands(this)) {
-    type = Type(contTypeAfter, NonNullable);
-  }
-}
-
 void ContNew::finalize() {
   if (func->type == Type::unreachable) {
     type = Type::unreachable;
-  } else {
-    type = Type(contType, NonNullable);
   }
 }
 
-static void populateResumeSentTypes(Resume* curr, Module* wasm) {
-  if (!wasm) {
-    return;
-  }
-
-  const Signature& contSig =
-    curr->contType.getContinuation().type.getSignature();
-
-  // Let $tag be a tag with type [tgp*] -> [tgr*]. Let $ct be a continuation
-  // type (cont $ft), where $ft is [ctp*] -> [ctr*]. Then an instruction (resume
-  // $ct ... (tag $tag $block) ... ) causes $block to receive values of the
-  // following types when suspending to $tag: tgp* (ref $ct') where ct' = (cont
-  // $ft') and ft' = [tgr*] -> [ctr*].
-  //
-  auto& ctrs = contSig.results;
-  curr->sentTypes.clear();
-  curr->sentTypes.resize(curr->handlerTags.size());
-  for (Index i = 0; i < curr->handlerTags.size(); i++) {
-    auto& tag = curr->handlerTags[i];
-    auto& tagSig = wasm->getTag(tag)->sig;
-
-    auto& tgps = tagSig.params;
-    auto& tgrs = tagSig.results;
-
-    HeapType ftPrime{Signature(tgrs, ctrs)};
-    HeapType ctPrime{Continuation(ftPrime)};
-    Type ctPrimeRef(ctPrime, Nullability::NonNullable);
-
-    if (tgps.size() > 0) {
-      TypeList sentValueTypes;
-      sentValueTypes.reserve(tgps.size() + 1);
-
-      sentValueTypes.insert(sentValueTypes.begin(), tgps.begin(), tgps.end());
-      sentValueTypes.push_back(ctPrimeRef);
-      curr->sentTypes[i] = Type(sentValueTypes);
-    } else {
-      curr->sentTypes[i] = ctPrimeRef;
-    }
-  }
-}
-
-void Resume::finalize(Module* wasm) {
+void ContBind::finalize() {
   if (cont->type == Type::unreachable) {
     type = Type::unreachable;
-  } else if (!handleUnreachableOperands(this)) {
-    const Signature& contSig =
-      this->contType.getContinuation().type.getSignature();
-    type = contSig.results;
+    return;
   }
-
-  populateResumeSentTypes(this, wasm);
+  if (handleUnreachableOperands(this)) {
+    return;
+  }
 }
 
 void Suspend::finalize(Module* wasm) {
@@ -1426,6 +1373,50 @@ void Suspend::finalize(Module* wasm) {
     auto tag = wasm->getTag(this->tag);
     type = tag->sig.results;
   }
+}
+
+void Resume::finalize() {
+  if (cont->type == Type::unreachable) {
+    type = Type::unreachable;
+    return;
+  }
+  if (handleUnreachableOperands(this)) {
+    return;
+  }
+
+  assert(this->cont->type.isContinuation());
+  const Signature& contSig =
+    this->cont->type.getHeapType().getContinuation().type.getSignature();
+  type = contSig.results;
+}
+
+void ResumeThrow::finalize() {
+  if (cont->type == Type::unreachable) {
+    type = Type::unreachable;
+    return;
+  }
+  if (handleUnreachableOperands(this)) {
+    return;
+  }
+
+  assert(this->cont->type.isContinuation());
+  const Signature& contSig =
+    this->cont->type.getHeapType().getContinuation().type.getSignature();
+  type = contSig.results;
+}
+
+void StackSwitch::finalize() {
+  if (cont->type == Type::unreachable) {
+    type = Type::unreachable;
+    return;
+  }
+  if (handleUnreachableOperands(this)) {
+    return;
+  }
+
+  assert(this->cont->type.isContinuation());
+  type =
+    this->cont->type.getHeapType().getContinuation().type.getSignature().params;
 }
 
 size_t Function::getNumParams() { return getParams().size(); }

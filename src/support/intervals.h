@@ -24,11 +24,11 @@
 
 namespace wasm {
 
-// The weight determines the value of the
-// interval when comparing against another interval, higher is better.
 struct Interval {
   unsigned start;
   unsigned end;
+  // The weight is used to determine which interval to keep when two overlap,
+  // higher is better
   unsigned weight;
   Interval(unsigned start, unsigned end, unsigned weight)
     : start(start), end(end), weight(weight) {}
@@ -43,8 +43,6 @@ struct Interval {
 };
 
 struct IntervalProcessor {
-  // Given a vector of intervals, returns a new vector. To resolve overlapping
-  // intervals, the interval with the highest weight is kept.
   static std::set<Interval> getOverlaps(std::vector<Interval>&);
 };
 

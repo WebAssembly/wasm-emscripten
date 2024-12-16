@@ -38,7 +38,7 @@ IntervalProcessor::getOverlaps(std::vector<Interval>& intervals) {
       continue;
     }
 
-    // Keep the interval with the higher score
+    // Keep the interval with the higher weight
     if (nextInterval.weight > firstInterval.weight) {
       overlaps.insert(firstInterval);
       firstInterval = nextInterval;

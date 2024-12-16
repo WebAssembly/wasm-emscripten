@@ -159,7 +159,7 @@ std::vector<SuffixTree::RepeatedSubstring> StringifyProcessor::removeOverlaps(
     for (auto startIdx : substring.StartIndices) {
       auto interval =
         Interval(startIdx,
-                 startIdx + substring.Length,
+                 startIdx + substring.Length - 1,
                  substring.Length * substring.StartIndices.size());
       intervals.push_back(interval);
       intervalMap[std::move(interval)] = i;
@@ -173,7 +173,7 @@ std::vector<SuffixTree::RepeatedSubstring> StringifyProcessor::removeOverlaps(
     doNotInclude.insert(intervalMap[interval]);
   }
 
-  // Only include non-overlapping substrings
+  // Add the substrings that don't overlap to the result
   std::vector<SuffixTree::RepeatedSubstring> result;
   for (Index i = 0; i < substrings.size(); i++) {
     if (doNotInclude.find(i) != doNotInclude.end()) {

@@ -1427,7 +1427,7 @@ int main(int argc, const char* argv[]) {
   }
 
   std::cerr << "|checking that command has expected behavior on canonicalized "
-               "(read-written) binary\n";
+               "(read-written) input\n";
   {
     // read and write it
     auto cmd = Path::getBinaryenBinaryTool("wasm-opt") + " " + input + " -o " +
@@ -1437,7 +1437,7 @@ int main(int argc, const char* argv[]) {
     }
     ProgramResult readWrite(cmd);
     if (readWrite.failed()) {
-      stopIfNotForced("failed to read and write the binary", readWrite);
+      stopIfNotForced("failed to read and write the input", readWrite);
     } else {
       ProgramResult result(command);
       if (result != expected) {

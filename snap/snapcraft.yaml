@@ -1,0 +1,36 @@
+name: binaryen
+version: git
+summary:  Compiler infrastructure and toolchain library for WebAssembly, in C++
+description: |
+  Binaryen is a compiler and toolchain infrastructure library for WebAssembly,
+  written in C++. It aims to make compiling to WebAssembly easy, fast, and
+  effective.
+
+grade: devel # must be 'stable' to release into candidate/stable channels
+confinement: devmode # use 'strict' once you have the right plugs and slots
+
+apps:
+  wasm-shell:
+    command: wasm-shell
+  wasm-as:
+    command: wasm-as
+  wasm-dis:
+    command: wasm-dis
+  wasm-opt:
+    command: wasm-opt
+  asm2wasm:
+    command: asm2wasm
+  wasm2asm:
+    command: wasm2asm
+  s2wasm:
+    command: s2wasm
+  wasm-merge:
+    command: wasm-merge
+  wasm-ctor-eval:
+    command: wasm-ctor-eval
+
+parts:
+  binaryen:
+    source: .
+    plugin: cmake
+    build-packages: [g++]

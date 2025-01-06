@@ -326,20 +326,9 @@ else()
 endif()
 
 if(EMSCRIPTEN)
-  # Note: to debug with DWARF you will usually want to enable BIGINT support, as
-  # that helps avoid running Binaryen on the wasm after link. Binaryen's DWARF
-  # rewriting has known limitations, so avoiding it during link is recommended
-  # where possible (like local debugging).
-  #
-  # Note that this is debug info for Binaryen itself, that is, when you are
-  # debugging Binaryen source code. This flag has no impact on what Binaryen
-  # does when run on wasm files.
-  option(ENABLE_BIGINT "Enable wasm BigInt support" OFF)
-  if(ENABLE_BIGINT)
-    add_link_flag("-sWASM_BIGINT")
-   else()
-    add_link_flag("-sWASM_BIGINT=0")
-  endif()
+  # This is now on by default in Emscripten, but set it explicitly to continue
+  # building correctly on older Emscriptens.
+  add_link_flag("-sWASM_BIGINT")
 
   if("${CMAKE_BUILD_TYPE}" MATCHES "Release")
     # Extra check that cmake has set -O3 in its release flags.

@@ -15,6 +15,9 @@ full changeset diff at the end of each section.
 Current Trunk
 -------------
 
+ - Binaryen.js now builds with BigInt support. The i64.const and f64.const_bits
+   functions now take BigInt parameters rather than pairs of numbers.
+
 v121
 ----
 

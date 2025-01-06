@@ -7,7 +7,7 @@
       )
     ])
   );
-  mod.addExport("test", func);
+  mod.addExport("test", "test");
   console.log(mod.validate())
 })();
 
@@ -20,6 +20,6 @@
       )
     ])
   );
-  mod.addFunctionExport("test", "test", func);
+  mod.addFunctionExport("test", "test");
   console.log(mod.validate())
 })();

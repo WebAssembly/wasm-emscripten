@@ -24,12 +24,22 @@
 #include <iostream>
 #include <limits>
 
+#if defined(_WIN32)
+#include <fcntl.h>
+#include <io.h>
+#endif
+
 #define DEBUG_TYPE "file"
 
 std::vector<char> wasm::read_stdin() {
   BYN_TRACE("Loading stdin...\n");
   std::vector<char> input;
   char c;
+#if defined(_WIN32)
+  // Windows opens stdin in text mode. Set the file mode to binary so
+  // that we can read Wasm binary files correctly.
+  assert(_setmode(fileno(stdin), _O_BINARY));
+#endif
   while (std::cin.get(c) && !std::cin.eof()) {
     input.push_back(c);
   }
@@ -106,6 +116,11 @@ wasm::Output::Output(const std::string& filename, Flags::BinaryOption binary)
       // about the types of different returns here.
       std::streambuf* buffer;
       if (filename == "-" || filename.empty()) {
+#if defined(_WIN32)
+        // Windows opens stdout in text mode. Set the file mode to binary
+        // so that we can output Wasm binary files correctly.
+        assert(_setmode(fileno(stdout), _O_BINARY));
+#endif
         buffer = std::cout.rdbuf();
       } else {
         BYN_TRACE("Opening '" << filename << "'\n");

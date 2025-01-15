@@ -65,6 +65,14 @@ inline bool canInitializeGlobal(Module& wasm, Expression* curr) {
   return Properties::isValidConstantExpression(wasm, curr);
 }
 
+// Counts the uses (global.gets) of globals in the entire module.
+struct UseCounter {
+  // The amount of uses for each global name.
+  std::unordered_map<Name, Index> globalUses;
+
+  UseCounter(Module& wasm);
+};
+
 } // namespace wasm::GlobalUtils
 
 #endif // wasm_ir_global_h

@@ -7,6 +7,7 @@ set(ir_SOURCES
   effects.cpp
   eh-utils.cpp
   export-utils.cpp
+  global-utils.cpp
   intrinsics.cpp
   lubs.cpp
   memory-utils.cpp

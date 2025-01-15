@@ -34,39 +34,12 @@
 #include "memory"
 
 #include "ir/find_all.h"
+#include "ir/global-utils.h"
 #include "pass.h"
 #include "support/topological_sort.h"
 #include "wasm.h"
 
 namespace wasm {
-
-// We'll count uses in parallel.
-using AtomicNameCountMap = std::unordered_map<Name, std::atomic<Index>>;
-
-struct UseCountScanner : public WalkerPass<PostWalker<UseCountScanner>> {
-  bool isFunctionParallel() override { return true; }
-
-  bool modifiesBinaryenIR() override { return false; }
-
-  UseCountScanner(AtomicNameCountMap& counts) : counts(counts) {}
-
-  std::unique_ptr<Pass> create() override {
-    return std::make_unique<UseCountScanner>(counts);
-  }
-
-  void visitGlobalGet(GlobalGet* curr) {
-    // We can't add a new element to the map in parallel.
-    assert(counts.count(curr->name) > 0);
-    counts[curr->name]++;
-  }
-  void visitGlobalSet(GlobalSet* curr) {
-    assert(counts.count(curr->name) > 0);
-    counts[curr->name]++;
-  }
-
-private:
-  AtomicNameCountMap& counts;
-};
 
 struct ReorderGlobals : public Pass {
   bool always;
@@ -97,25 +70,15 @@ struct ReorderGlobals : public Pass {
       return;
     }
 
-    AtomicNameCountMap atomicCounts;
-    // Fill in info, as we'll operate on it in parallel.
-    for (auto& global : globals) {
-      atomicCounts[global->name];
-    }
+    GlobalUtils::UseCounter uses(*module);
 
-    // Count uses.
-    UseCountScanner scanner(atomicCounts);
-    scanner.run(getPassRunner(), module);
-    scanner.runOnModuleCode(getPassRunner(), module);
-
-    // Switch to non-atomic for all further processing, and convert names to
-    // indices.
+    // Convert names to indices.
     std::unordered_map<Name, Index> originalIndices;
     for (Index i = 0; i < globals.size(); i++) {
       originalIndices[globals[i]->name] = i;
     }
     IndexCountMap counts(globals.size());
-    for (auto& [name, count] : atomicCounts) {
+    for (auto& [name, count] : uses.globalUses) {
       counts[originalIndices[name]] = count;
     }
 

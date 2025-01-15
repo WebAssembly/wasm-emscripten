@@ -28,6 +28,7 @@
 #include <memory>
 
 #include "ir/branch-utils.h"
+#include "ir/global-utils.h"
 #include "ir/iteration.h"
 #include "ir/literal-utils.h"
 #include "ir/properties.h"
@@ -907,6 +908,55 @@ struct Reducer
     }
   }
 
+  bool reduceGlobals() {
+    auto& globals = module->globals;
+    if (globals.empty()) {
+      return false;
+    }
+
+    GlobalUtils::UseCounter globalUses(*module);
+
+    // If a global has no uses then we can try to remove it. (We could also use
+    // dependencies to do more work in a single cycle, but more cycles will make
+    // further progress anyhow.)
+    // TODO: Remove exponential amounts at a time for efficiency, like funcs.
+    size_t removed = 0;
+    std::cerr << "|    trying globals...\n";
+    for (int64_t i = globals.size() - 1; i >= 0; i--) {
+      // Ignore used globals and respect a reasonable frequency of attempts.
+      if (globalUses.globalUses[globals[i]->name] > 0 ||
+          !shouldTryToReduce(std::max(factor / 200, 1))) {
+        continue;
+      }
+
+      // Copy the global to the side, remove it, and see if that works. If not,
+      // return it.
+      Global global = *globals[i];
+      module->removeGlobal(global.name);
+      ProgramResult result;
+      if (!writeAndTestReduction(result)) {
+        // Re-add the global. Note that this puts it at the very end, which may
+        // be a different position. This is valid as it has no dependencies, but
+        // it may affect binary size, so it might be worth the work to reinsert
+        // it properly? TODO
+        module->addGlobal(std::make_unique<Global>(global));
+      } else {
+        noteReduction(1);
+        removed++;
+        if (removed == 1) {
+          std::cerr << "|      removed a global";
+        } else {
+          std::cerr << ".";
+        }
+      }
+    }
+    if (removed) {
+      std::cerr << "\n";
+    }
+    // If we removed a significant amount, suggest that we keep going.
+    return removed >= (size_t)factor;
+  }
+
   // Reduces entire functions at a time. Returns whether we did a significant
   // amount of reduction that justifies doing even more.
   bool reduceFunctions() {
@@ -948,8 +998,6 @@ struct Reducer
       if (names.size() == 0) {
         continue;
       }
-      std::cerr << "|     trying at i=" << i << " of size " << names.size()
-                << "\n";
       // Try to remove functions and/or empty them. Note that
       // tryToRemoveFunctions() will reload the module if it fails, which means
       // function names may change - for that reason, run it second.
@@ -987,6 +1035,9 @@ struct Reducer
     }
 
     shrinkElementSegments();
+
+    while (reduceGlobals()) {
+    }
 
     // try to remove exports
     std::cerr << "|    try to remove exports (with factor " << factor << ")\n";

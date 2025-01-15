@@ -611,6 +611,13 @@ void TranslateToFuzzReader::setupGlobals() {
     // initializer.
     auto* init = makeTrivial(type);
 
+    if (type.isTuple() && !init->is<TupleMake>()) {
+      // For now we disallow anything but tuple.make at the top level of tuple
+      // globals (see details in wasm-binary.cpp). In the future we may allow
+      // global.get or other things here.
+      init = makeConst(type);
+      assert(init->is<TupleMake>());
+    }
     if (!FindAll<RefAs>(init).list.empty()) {
       // When creating this initial value we ended up emitting a RefAs, which
       // means we had to stop in the middle of an overly-nested struct or array,
@@ -619,13 +626,8 @@ void TranslateToFuzzReader::setupGlobals() {
       // validate in a global. Switch to something safe instead.
       type = getMVPType();
       init = makeConst(type);
-    } else if (type.isTuple() && !init->is<TupleMake>()) {
-      // For now we disallow anything but tuple.make at the top level of tuple
-      // globals (see details in wasm-binary.cpp). In the future we may allow
-      // global.get or other things here.
-      init = makeConst(type);
-      assert(init->is<TupleMake>());
     }
+
     auto global = builder.makeGlobal(
       Names::getValidGlobalName(wasm, "global$"), type, init, mutability);
     useGlobalLater(wasm.addGlobal(std::move(global)));

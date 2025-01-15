@@ -20,6 +20,15 @@ for tool_file in os.listdir(bin_dir):
     tool = tool_file[:-4] if tool_file.endswith('.exe') else tool_file
     config.substitutions.append((tool, tool_path))
 
+# Replace all Binaryen scripts with their absolute paths
+binaryen_src_root = os.path.dirname(os.path.dirname(config.test_source_root))
+scripts_dir = os.path.join(binaryen_src_root, 'scripts')
+assert(os.path.isdir(scripts_dir))
+
+for script_file in os.listdir(scripts_dir):
+    script_path = os.path.join(scripts_dir, script_file)
+    config.substitutions.append((script_file, script_path))
+
 # Also make the `not` and `foreach` commands available
 for tool in ('not', 'foreach'):
     tool_file = config.binaryen_src_root + '/scripts/' + tool + '.py'

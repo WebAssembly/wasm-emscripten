@@ -1,0 +1,25 @@
+
+;; RUN: gen-delegations-json.py > %t.js
+
+;; Verify that we emit valid JSON from the delegations tool.
+;; RUN: nodejs %t.js
+
+;; Verify that it contains things we expect, for example If.
+;; RUN: cat %t.js | filecheck %s --check-prefix=CHECK
+;; CHECK:    id: 'If',
+;; CHECK-NEXT:    fields: [
+;; CHECK-NEXT:      {
+;; CHECK-NEXT:        form: 'OPTIONAL_CHILD',
+;; CHECK-NEXT:        name: 'ifFalse',
+;; CHECK-NEXT:      },
+;; CHECK-NEXT:      {
+;; CHECK-NEXT:        form: 'CHILD',
+;; CHECK-NEXT:        name: 'ifTrue',
+;; CHECK-NEXT:      },
+;; CHECK-NEXT:      {
+;; CHECK-NEXT:        form: 'CHILD',
+;; CHECK-NEXT:        name: 'condition',
+;; CHECK-NEXT:      },
+;; CHECK-NEXT:    ]
+;; CHECK-NEXT:  },
+

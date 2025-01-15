@@ -8,7 +8,7 @@ if [ -n "$1" ]; then
 elif [ -n "$GITHUB_BASE_REF" ]; then
   BRANCH="origin/$GITHUB_BASE_REF"
 else
-  BRANCH="@{upstream}"
+  BRANCH="$(git symbolic-ref --short -q HEAD)"
 fi
 
 CLANG_TIDY=$(which clang-tidy)

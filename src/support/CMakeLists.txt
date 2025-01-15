@@ -7,6 +7,7 @@ set(support_SOURCES
   debug.cpp
   dfa_minimization.cpp
   file.cpp
+  intervals.cpp
   istring.cpp
   json.cpp
   name.cpp

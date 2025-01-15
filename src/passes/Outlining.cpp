@@ -280,6 +280,8 @@ struct Outlining : public Pass {
     DBG(printHashString(stringify.hashString, stringify.exprs));
     // Remove substrings that are substrings of longer repeat substrings.
     substrings = StringifyProcessor::dedupe(substrings);
+    // Remove substrings with overlapping indices
+    substrings = StringifyProcessor::removeOverlaps(substrings);
     // Remove substrings with branch and return instructions until an analysis
     // is performed to see if the intended destination of the branch is included
     // in the substring to be outlined.

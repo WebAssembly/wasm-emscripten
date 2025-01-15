@@ -1110,7 +1110,7 @@ void Relooper::Calculate(Block* Entry) {
         Prior->BranchesOut.erase(Target);
         Prior->ProcessedBranchesOut[Target] = PriorOut;
         PrintDebug("  eliminated branch from %d\n", Prior->Id);
-      }
+           }
     }
 
     Shape* MakeSimple(BlockSet& Blocks, Block* Inner, BlockSet& NextEntries) {
@@ -1409,7 +1409,7 @@ void Relooper::Calculate(Block* Entry) {
               Solipsize(CurrTarget, Branch::Break, Multiple, CurrBlocks);
             }
             iter = Next; // increment carefully because Solipsize can remove us
-          }
+               }
         }
         Multiple->InnerMap[CurrEntry->Id] = Process(CurrBlocks, CurrEntries);
         if (IsCheckedMultiple) {
@@ -1476,105 +1476,42 @@ void Relooper::Calculate(Block* Entry) {
           Make(MakeLoop(Blocks, *Entries, *NextEntries));
         }
 
-        // More than one entry, try to eliminate through a Multiple groups of
-        // independent blocks from an entry/ies. It is important to remove
-        // through multiples as opposed to looping since the former is more
-        // performant.
+        // More than one entry, try to eliminate through a Multiple groups of independent blocks from entries.
         BlockBlockSetMap IndependentGroups;
         FindIndependentGroups(*Entries, IndependentGroups);
 
         PrintDebug("Independent groups: %d\n", IndependentGroups.size());
 
-        if (IndependentGroups.size() > 0) {
-          // We can handle a group in a multiple if its entry cannot be reached
-          // by another group. Note that it might be reachable by itself - a
-          // loop. But that is fine, we will create a loop inside the multiple
-          // block, which is both the performant order to do it, and preserves
-          // the property that a loop will always reach an entry.
-          for (auto iter = IndependentGroups.begin();
-               iter != IndependentGroups.end();) {
-            Block* Entry = iter->first;
-            BlockSet& Group = iter->second;
-            auto curr = iter++; // iterate carefully, we may delete
-            for (auto iterBranch = Entry->BranchesIn.begin();
-                 iterBranch != Entry->BranchesIn.end();
-                 iterBranch++) {
-              Block* Origin = *iterBranch;
-              if (!contains(Group, Origin)) {
-                // Reached from outside the group, so we cannot handle this
-                PrintDebug("Cannot handle group with entry %d because of "
-                           "incoming branch from %d\n",
-                           Entry->Id,
-                           Origin->Id);
-                IndependentGroups.erase(curr);
-                break;
-              }
-            }
-          }
-
-          // As an optimization, if we have 2 independent groups, and one is a
-          // small dead end, we can handle only that dead end. The other then
-          // becomes a Next - without nesting in the code and recursion in the
-          // analysis.
-          // TODO: if the larger is the only dead end, handle that too
-          // TODO: handle >2 groups
-          // TODO: handle not just dead ends, but also that do not branch to the
-          //       NextEntries. However, must be careful
-          //       there since we create a Next, and that Next can prevent
-          //       eliminating a break (since we no longer naturally reach the
-          //       same place), which may necessitate a one-time loop, which
-          //       makes the unnesting pointless.
-          if (IndependentGroups.size() == 2) {
-            // Find the smaller one
-            auto iter = IndependentGroups.begin();
-            Block* SmallEntry = iter->first;
-            int SmallSize = iter->second.size();
-            iter++;
-            Block* LargeEntry = iter->first;
-            int LargeSize = iter->second.size();
-            // ignore the case where they are identical - keep things
-            // symmetrical there
-            if (SmallSize != LargeSize) {
-              if (SmallSize > LargeSize) {
-                Block* Temp = SmallEntry;
-                SmallEntry = LargeEntry;
-                // Note: we did not flip the Sizes too, they are now invalid.
-                // TODO: use the smaller size as a limit?
-                LargeEntry = Temp;
-              }
-              // Check if dead end
-              bool DeadEnd = true;
-              BlockSet& SmallGroup = IndependentGroups[SmallEntry];
-              for (auto* Curr : SmallGroup) {
-                for (auto& [Target, _] : Curr->BranchesOut) {
-                  if (!contains(SmallGroup, Target)) {
-                    DeadEnd = false;
-                    break;
-                  }
-                }
-                if (!DeadEnd) {
+        if (IndependentGroups.size() >= 2) {
+          // Identify dead-end groups to process
+          std::vector<Block*> EntriesToProcess;
+          std::vector<Block*> EntriesToDefer;
+          for (auto& [Entry, Group] : IndependentGroups) {
+            bool DeadEnd = true;
+            for (auto* Curr : Group) {
+              for (auto& [Target, _] : Curr->BranchesOut) {
+                if (!contains(Group, Target)) {
+                  DeadEnd = false;
                   break;
                 }
               }
-              if (DeadEnd) {
-                PrintDebug("Removing nesting by not handling large group "
-                           "because small group is dead end\n",
-                           0);
-                IndependentGroups.erase(LargeEntry);
+              if (!DeadEnd) {
+                break;
               }
             }
+            if (DeadEnd) {
+              EntriesToProcess.push_back(Entry);
+            } else {
+              EntriesToDefer.push_back(Entry);
+            }
           }
-
-          PrintDebug("Handleable independent groups: %d\n",
-                     IndependentGroups.size());
-
-          if (IndependentGroups.size() > 0) {
-            // Some groups removable ==> Multiple
-            // This is a checked multiple if it has an entry that is an entry to
-            // this Process call, that is, if we can reach it from outside this
-            // set of blocks, then we must check the label variable to do so.
-            // Otherwise, if it is just internal blocks, those can always be
-            // jumped to forward, without using the label variable
+          if (!EntriesToProcess.empty()) {
+            // Remove deferred entries from IndependentGroups and add them to NextEntries
+            for (auto* Entry : EntriesToDefer) {
+              IndependentGroups.erase(Entry);
+              NextEntries->insert(Entry);
+            }
+            // Proceed to make a multiple with the dead-end groups
             bool Checked = false;
             for (auto* Entry : *Entries) {
               if (InitialEntries.count(Entry)) {
@@ -1582,15 +1519,19 @@ void Relooper::Calculate(Block* Entry) {
                 break;
               }
             }
-            Make(MakeMultiple(
-              Blocks, *Entries, IndependentGroups, *NextEntries, Checked));
+            Make(MakeMultiple(Blocks, *Entries, IndependentGroups, *NextEntries, Checked));
+            // After handling, reset Entries to NextEntries for further processing
+            Entries = NextEntries;
+            continue;
           }
         }
-        // No independent groups, must be loopable ==> Loop
+
+        // No independent groups or no dead-end groups to process, must be loopable ==> Loop
         Make(MakeLoop(Blocks, *Entries, *NextEntries));
       }
     }
   };
+
 
   // Main
 

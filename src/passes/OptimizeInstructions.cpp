@@ -397,6 +397,24 @@ struct OptimizeInstructions
         }
       }
       {
+        // x < 0 || x > POSITIVE_CONST   ==>   unsigned(x) > POSITIVE_CONST
+        Binary* bin;
+        Expression *xLeft, *xRight;
+        Const* y;
+        if (matches(curr,
+                    binary(&bin,
+                           OrInt32,
+                           binary(LtSInt32, any(&xLeft), i32(0)),
+                           binary(GtSInt32, any(&xRight), constant(&y)))) &&
+            y->type == Type::i32 && y->value.geti32() > 0 &&
+            areConsecutiveInputsEqualAndFoldable(xLeft, xRight)) {
+          bin->op = GtUInt32;
+          bin->left = xLeft;
+          bin->right = y;
+          return;
+        }
+      }
+      {
         // x <<>> (C & (31 | 63))   ==>   x <<>> C'
         // x <<>> (y & (31 | 63))   ==>   x <<>> y
         // x <<>> (y & (32 | 64))   ==>   x

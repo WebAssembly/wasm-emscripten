@@ -97,7 +97,7 @@ struct GUFAOptimizer
   std::unordered_map<Expression*, PossibleContents> newContents;
 
   Expression* replaceCurrent(Expression* rep) {
-    newContents[rep] = oracle.getContents(getCurrent());
+    newContents[rep] = oracle.getExprContents(getCurrent());
 
     return WalkerPass<
       PostWalker<GUFAOptimizer,
@@ -111,7 +111,7 @@ struct GUFAOptimizer
       return iter->second;
     }
 
-    return oracle.getContents(curr);
+    return oracle.getExprContents(curr);
   }
 
   void visitExpression(Expression* curr) {

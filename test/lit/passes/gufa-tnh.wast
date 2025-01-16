@@ -1937,6 +1937,39 @@
   )
 )
 
+;; An inference that requires two internal passes of the TNH oracle to achieve.
+;; TODO: For this to pass, we need to not only update the oracle result for
+;;       the cast in $middle, but also the ref.cast itself (or read from
+;;       the oracle for the cast).
+(module
+  (func $called (param $x (ref null func))
+    (drop
+      (ref.cast func
+        (local.get $x)
+      )
+    )
+  )
+
+  (func $middle (param $x (ref null func))
+    (call $called
+      (ref.cast null func
+        (local.get $x)
+      )
+    )
+  )
+
+  ;; CHECK:      (func $caller (type $none_=>_none)
+  ;; CHECK-NEXT:  (call $called)
+  ;; CHECK-NEXT: )
+  (func $caller (param $x (ref null func)) (export "out")
+    (call $middle
+      (ref.cast null func
+        (local.get $x)
+      )
+    )
+  )
+)
+
 ;; A CallRef with no non-trapping targets must be unreachable if traps never
 ;; happen. However, this requires closed world, so we do nothing here. (This
 ;; test is mirrored in gufa-tnh-closed, where closed world *is* enabled.)

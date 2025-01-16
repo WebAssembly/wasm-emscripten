@@ -618,6 +618,46 @@ template<> struct hash<wasm::ConeReadLocation> {
 
 namespace wasm {
 
+// A generic oracle, which provides an interface to query for contents at
+// locations.
+//
+// This is not an abstract class, but can be instantiated in order to get a
+// "empty" oracle, i.e., one that returns no insightful responses.
+//
+// A common pattern in users is to chain oracles. Each oracle can benefit from
+// the inferences in the previous one before it, and it adds new inferences on
+// top of that.
+class Oracle {
+protected:
+  Module& wasm;
+  const PassOptions& options;
+
+public:
+  Oracle(Module& wasm, const PassOptions& options)
+    : wasm(wasm), options(options) {}
+
+  virtual ~Oracle() {}
+
+  // Get the contents possible at a location.
+  virtual PossibleContents getContents(Location location) const {
+    // Nothing useful is known in this uninsightful oracle. If we have an
+    // expression then we have its type, at least.
+    // TODO: We could also repot types of other Locations.
+    if (auto* exprLoc = std::get_if<ExpressionLocation>(&location)) {
+      return PossibleContents::fullConeType(exprLoc->expr->type);
+    }
+    return PossibleContents::many();
+  }
+
+  // Helper for the common case of an expression location that is not a
+  // multivalue.
+  PossibleContents getExprContents(Expression* curr) const {
+    assert(curr->type.size() == 1);
+    auto ret = getContents(ExpressionLocation{curr, 0});
+    return ret;
+  }
+};
+
 // Analyze the entire wasm file to find which contents are possible in which
 // locations. This assumes a closed world and starts from roots - newly created
 // values - and propagates them to the locations they reach. After the
@@ -651,20 +691,17 @@ namespace wasm {
 // caller is assumed to know the wasm IR type anyhow, and also other
 // optimization passes work on the types in the IR, so we do not focus on that
 // here.
-class ContentOracle {
-  Module& wasm;
-  const PassOptions& options;
-
+class ContentOracle : public Oracle {
   void analyze();
 
 public:
   ContentOracle(Module& wasm, const PassOptions& options)
-    : wasm(wasm), options(options) {
+    : Oracle(wasm, options) {
     analyze();
   }
 
   // Get the contents possible at a location.
-  PossibleContents getContents(Location location) {
+  PossibleContents getContents(Location location) const override {
     auto iter = locationContents.find(location);
     if (iter == locationContents.end()) {
       // We know of no possible contents here.
@@ -673,14 +710,10 @@ public:
     return iter->second;
   }
 
-  // Helper for the common case of an expression location that is not a
-  // multivalue.
-  PossibleContents getContents(Expression* curr) {
-    assert(curr->type.size() == 1);
-    return getContents(ExpressionLocation{curr, 0});
-  }
-
 private:
+  // Maps locations to the content we inferred there. If a location is not
+  // here then no content is possible there (which is the result of the flow
+  // analysis not sending anything here at all).
   std::unordered_map<Location, PossibleContents> locationContents;
 };
 

@@ -676,7 +676,11 @@ struct OptimizeInstructions
       // note that both left and right may be consts, but then we let
       // precompute compute the constant result
     } else if (curr->op == AddInt32 || curr->op == AddInt64 ||
-               curr->op == SubInt32 || curr->op == SubInt64) {
+               curr->op == SubInt32 || curr->op == SubInt64 ||
+               curr->op == AddVecI8x16 || curr->op == AddVecI16x8 ||
+               curr->op == SubVecI8x16 || curr->op == SubVecI16x8 ||
+               curr->op == AddVecI32x4 || curr->op == AddVecI64x2 ||
+               curr->op == SubVecI32x4 || curr->op == SubVecI64x2) {
       if (auto* ret = optimizeAddedConstants(curr)) {
         return replaceCurrent(ret);
       }
@@ -2925,7 +2929,7 @@ private:
   // and combine them note that we ignore division/shift-right, as rounding
   // makes this nonlinear, so not a valid opt
   Expression* optimizeAddedConstants(Binary* binary) {
-    assert(binary->type.isInteger());
+    assert(binary->type.isInteger() || binary->type.isVector());
 
     uint64_t constant = 0;
     std::vector<Const*> constants;

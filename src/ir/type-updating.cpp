@@ -20,6 +20,7 @@
 #include "ir/module-utils.h"
 #include "ir/names.h"
 #include "ir/utils.h"
+#include "support/small_vector.h"
 #include "support/topological_sort.h"
 #include "wasm-type-ordering.h"
 #include "wasm-type.h"
@@ -545,7 +546,9 @@ void updateParamTypes(Function* func,
   if (!paramFixups.empty()) {
     // Write the params immediately to the fixups.
     Builder builder(wasm);
-    std::vector<Expression*> contents;
+    // Use a small vector as functions generally have a reasonable number of
+    // parameters.
+    SmallVector<Expression*, 10> contents;
     for (Index index = 0; index < func->getNumParams(); index++) {
       auto iter = paramFixups.find(index);
       if (iter != paramFixups.end()) {

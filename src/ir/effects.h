@@ -19,6 +19,7 @@
 
 #include "ir/intrinsics.h"
 #include "pass.h"
+#include "support/small_set.h"
 #include "wasm-traversal.h"
 
 namespace wasm {
@@ -103,10 +104,10 @@ public:
   // of control flow proceeding normally).
   bool branchesOut = false;
   bool calls = false;
-  std::set<Index> localsRead;
-  std::set<Index> localsWritten;
-  std::set<Name> mutableGlobalsRead;
-  std::set<Name> globalsWritten;
+  SmallSet<Index, 1> localsRead;
+  SmallSet<Index, 1> localsWritten;
+  SmallSet<Name, 1> mutableGlobalsRead;
+  SmallSet<Name, 1> globalsWritten;
   bool readsMemory = false;
   bool writesMemory = false;
   bool readsTable = false;
@@ -404,8 +405,8 @@ public:
     return hasAnything();
   }
 
-  std::set<Name> breakTargets;
-  std::set<Name> delegateTargets;
+  SmallSet<Name, 1> breakTargets;
+  SmallSet<Name, 1> delegateTargets;
 
 private:
   struct InternalAnalyzer

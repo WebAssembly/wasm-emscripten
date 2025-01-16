@@ -579,6 +579,10 @@ void PassRegistry::registerPasses() {
                "removes local.tees, replacing them with sets and gets",
                createUnteePass);
   registerPass("vacuum", "removes obviously unneeded code", createVacuumPass);
+  registerPass(
+    "add-throws",
+    "add throws for divs by zero, null dereferences, and array OOB access",
+    createAddThrowsPass);
   // registerPass(
   //   "lower-i64", "lowers i64 into pairs of i32s", createLowerInt64Pass);
 

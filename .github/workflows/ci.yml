@@ -75,6 +75,11 @@ jobs:
       run: choco install ninja
       if: matrix.os == 'windows-latest'
 
+    - name: install v8
+      run: |
+        npm install jsvu -g
+        jsvu --os=default --engines=v8
+
     - name: mkdir
       run: mkdir -p out
 
@@ -125,6 +130,10 @@ jobs:
         submodules: true
     - name: install ninja
       run: sudo apt-get install ninja-build
+    - name: install v8
+      run: |
+        npm install jsvu -g
+        jsvu --os=default --engines=v8
     - name: install Python dev dependencies
       run: pip3 install -r requirements-dev.txt
     - name: cmake
@@ -161,6 +170,10 @@ jobs:
         sudo ./llvm.sh 18
     - name: install ninja
       run: sudo apt-get install ninja-build
+    - name: install v8
+      run: |
+        npm install jsvu -g
+        jsvu --os=default --engines=v8
     - name: install Python dev dependencies
       run: pip3 install -r requirements-dev.txt
     - name: cmake
@@ -196,6 +209,11 @@ jobs:
         ./alpine.sh apk update
         ./alpine.sh apk add build-base cmake git python3 py3-pip clang ninja
 
+    - name: install v8
+      run: |
+        ./alpine.sh npm install jsvu -g
+        ./alpine.sh jsvu --os=default --engines=v8
+
     - name: install python dev dependencies
       run: ./alpine.sh pip3 install --break-system-packages -r requirements-dev.txt
 
@@ -227,6 +245,10 @@ jobs:
         submodules: true
     - name: install ninja
       run: sudo apt-get install ninja-build
+    - name: install v8
+      run: |
+        npm install jsvu -g
+        jsvu --os=default --engines=v8
     - name: install Python dev dependencies
       run: pip3 install -r requirements-dev.txt
     - name: cmake
@@ -261,6 +283,10 @@ jobs:
         sudo ./llvm.sh 18
     - name: install ninja
       run: sudo apt-get install ninja-build
+    - name: install v8
+      run: |
+        npm install jsvu -g
+        jsvu --os=default --engines=v8
     - name: install Python dev dependencies
       run: pip3 install -r requirements-dev.txt
     - name: cmake
@@ -378,6 +404,10 @@ jobs:
         submodules: true
     - name: install ninja
       run: sudo apt-get install ninja-build
+    - name: install v8
+      run: |
+        npm install jsvu -g
+        jsvu --os=default --engines=v8
     - name: install Python dev dependencies
       run: pip3 install -r requirements-dev.txt
     - name: cmake

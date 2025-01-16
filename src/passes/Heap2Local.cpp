@@ -150,6 +150,7 @@
 // This optimization focuses on such cases.
 //
 
+#include "ir/abstract.h"
 #include "ir/bits.h"
 #include "ir/branch-utils.h"
 #include "ir/eh-utils.h"
@@ -413,6 +414,18 @@ struct EscapeAnalyzer {
       void visitStructGet(StructGet* curr) {
         escapes = false;
         fullyConsumes = true;
+      }
+      void visitStructRMW(StructRMW* curr) {
+        if (curr->ref == child) {
+          escapes = false;
+          fullyConsumes = true;
+        }
+      }
+      void visitStructCmpxchg(StructCmpxchg* curr) {
+        if (curr->ref == child || curr->expected == child) {
+          escapes = false;
+          fullyConsumes = true;
+        }
       }
       void visitArraySet(ArraySet* curr) {
         if (!curr->index->is<Const>()) {
@@ -890,6 +903,132 @@ struct Struct2Local : PostWalker<Struct2Local> {
       replacement = builder.blockify(replacement, builder.makeAtomicFence());
     }
     replaceCurrent(builder.blockify(replacement, value));
+  }
+
+  void visitStructRMW(StructRMW* curr) {
+    if (analyzer.getInteraction(curr) == ParentChildInteraction::None) {
+      return;
+    }
+
+    auto& field = fields[curr->index];
+    auto type = curr->type;
+    assert(type == field.type);
+    assert(!field.isPacked());
+
+    // We need a scratch local to hold the old, unmodified field value while we
+    // update the original local with the modified value. We also need another
+    // scratch local to hold the evaluated modification value while we set the
+    // first scratch local in case the evaluation of the modification value ends
+    // up changing the field value. This is similar to the scratch locals used
+    // for struct.new.
+    auto oldScratch = builder.addVar(func, type);
+    auto valScratch = builder.addVar(func, type);
+    auto local = localIndexes[curr->index];
+
+    auto* block =
+      builder.makeSequence(builder.makeDrop(curr->ref),
+                           builder.makeLocalSet(valScratch, curr->value));
+
+    // Stash the old value to return.
+    block->list.push_back(
+      builder.makeLocalSet(oldScratch, builder.makeLocalGet(local, type)));
+
+    // Store the updated value.
+    Expression* newVal = nullptr;
+    if (curr->op == RMWXchg) {
+      newVal = builder.makeLocalGet(valScratch, type);
+    } else {
+      Abstract::Op binop = Abstract::Add;
+      switch (curr->op) {
+        case RMWAdd:
+          binop = Abstract::Add;
+          break;
+        case RMWSub:
+          binop = Abstract::Sub;
+          break;
+        case RMWAnd:
+          binop = Abstract::And;
+          break;
+        case RMWOr:
+          binop = Abstract::Or;
+          break;
+        case RMWXor:
+          binop = Abstract::Xor;
+          break;
+        case RMWXchg:
+          WASM_UNREACHABLE("unexpected op");
+      }
+      newVal = builder.makeBinary(Abstract::getBinary(type, binop),
+                                  builder.makeLocalGet(local, type),
+                                  builder.makeLocalGet(valScratch, type));
+    }
+    block->list.push_back(builder.makeLocalSet(local, newVal));
+
+    // See the notes on seqcst struct.get and struct.set.
+    if (curr->order == MemoryOrder::SeqCst) {
+      block->list.push_back(builder.makeAtomicFence());
+    }
+
+    // Unstash the old value.
+    block->list.push_back(builder.makeLocalGet(oldScratch, type));
+    block->type = type;
+    replaceCurrent(block);
+  }
+
+  void visitStructCmpxchg(StructCmpxchg* curr) {
+    if (analyzer.getInteraction(curr->ref) != ParentChildInteraction::Flows) {
+      // The allocation can't flow into `replacement` if we've made it this far,
+      // but it might flow into `expected`, in which case we don't need to do
+      // anything because we would still be performing the cmpxchg on a real
+      // struct. We only need to replace the cmpxchg if the ref is being
+      // replaced with locals.
+      return;
+    }
+
+    auto& field = fields[curr->index];
+    auto type = curr->type;
+    assert(type == field.type);
+    assert(!field.isPacked());
+
+    // Hold everything in scratch locals, just like for other RMW ops and
+    // struct.new.
+    auto oldScratch = builder.addVar(func, type);
+    auto expectedScratch = builder.addVar(func, type);
+    auto replacementScratch = builder.addVar(func, type);
+    auto local = localIndexes[curr->index];
+
+    auto* block = builder.makeBlock(
+      {builder.makeDrop(curr->ref),
+       builder.makeLocalSet(expectedScratch, curr->expected),
+       builder.makeLocalSet(replacementScratch, curr->replacement),
+       builder.makeLocalSet(oldScratch, builder.makeLocalGet(local, type))});
+
+    // Create the check for whether we should do the exchange.
+    auto* lhs = builder.makeLocalGet(local, type);
+    auto* rhs = builder.makeLocalGet(expectedScratch, type);
+    Expression* pred;
+    if (type.isRef()) {
+      pred = builder.makeRefEq(lhs, rhs);
+    } else {
+      pred =
+        builder.makeBinary(Abstract::getBinary(type, Abstract::Eq), lhs, rhs);
+    }
+
+    // The conditional exchange.
+    block->list.push_back(
+      builder.makeIf(pred,
+                     builder.makeLocalSet(
+                       local, builder.makeLocalGet(replacementScratch, type))));
+
+    // See the notes on seqcst struct.get and struct.set.
+    if (curr->order == MemoryOrder::SeqCst) {
+      block->list.push_back(builder.makeAtomicFence());
+    }
+
+    // Unstash the old value.
+    block->list.push_back(builder.makeLocalGet(oldScratch, type));
+    block->type = type;
+    replaceCurrent(block);
   }
 };
 

@@ -1,9 +1,7 @@
 #include "passes/intrinsics-module.h"
 
-static const char theModule[] = {
-@WASM_INTRINSICS_EMBED@
-};
-
 namespace wasm {
-const char* IntrinsicsModuleWast = theModule;
+const char* IntrinsicsModuleWast = R"""(
+@WASM_INTRINSICS_WAT@
+)""";
 }

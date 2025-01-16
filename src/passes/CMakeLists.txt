@@ -1,13 +1,6 @@
-file(READ wasm-intrinsics.wat WASM_INTRINSICS_WAT HEX)
 set(CMAKE_CONFIGURE_DEPENDS wasm-intrinsics.wat)
 
-string(REGEX MATCHALL "([A-Fa-f0-9][A-Fa-f0-9])" SEPARATED_HEX ${WASM_INTRINSICS_WAT})
-
-foreach (hex IN LISTS SEPARATED_HEX)
-  string(APPEND WASM_INTRINSICS_EMBED "0x${hex},")
-endforeach ()
-string(APPEND WASM_INTRINSICS_EMBED "0x00")
-
+file(READ wasm-intrinsics.wat WASM_INTRINSICS_WAT)
 configure_file(WasmIntrinsics.cpp.in WasmIntrinsics.cpp @ONLY)
 
 FILE(GLOB passes_HEADERS *.h)

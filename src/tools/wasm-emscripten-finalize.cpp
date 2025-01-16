@@ -54,6 +54,7 @@ int main(int argc, const char* argv[]) {
   bool minimizeWasmChanges = false;
   bool noDynCalls = false;
   bool onlyI64DynCalls = false;
+  bool memoryPacking = false;
 
   const std::string WasmEmscriptenFinalizeOption =
     "wasm-emscripten-finalize options";
@@ -179,6 +180,14 @@ int main(int argc, const char* argv[]) {
          [&onlyI64DynCalls](Options* o, const std::string&) {
            onlyI64DynCalls = true;
          })
+    .add("--pack-memory",
+         "",
+         "Pack memory segments before writing out memory file",
+         WasmEmscriptenFinalizeOption,
+         Options::Arguments::Zero,
+         [&memoryPacking](Options*, const std::string&) {
+           memoryPacking = true;
+         })
     .add_positional("INFILE",
                     Options::Arguments::One,
                     [&infile](Options* o, const std::string& argument) {
@@ -270,6 +279,16 @@ int main(int argc, const char* argv[]) {
   // until wasm-opt strips it later.
   if (!DWARF) {
     passRunner.add("strip-dwarf");
+  }
+
+  // If we are going to write out the memory to file, add
+  // `--zero-filled-memory` was passed then run the memory packing
+  // pass now, before we write out the file.
+  // TODO(sbc): Move the writing of the memory file to a later phase
+  // and remove this option.
+  if (!dataSegmentFile.empty() && memoryPacking) {
+    passRunner.options.zeroFilledMemory = true;
+    passRunner.add("memory-packing");
   }
 
   passRunner.run();

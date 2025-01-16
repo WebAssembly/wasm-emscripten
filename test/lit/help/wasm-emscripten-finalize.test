@@ -57,6 +57,9 @@
 ;; CHECK-NEXT:
 ;; CHECK-NEXT:   --dyncalls-i64
 ;; CHECK-NEXT:
+;; CHECK-NEXT:   --pack-memory                       Pack memory segments before writing out
+;; CHECK-NEXT:                                       memory file
+;; CHECK-NEXT:
 ;; CHECK-NEXT:
 ;; CHECK-NEXT: Tool options:
 ;; CHECK-NEXT: -------------

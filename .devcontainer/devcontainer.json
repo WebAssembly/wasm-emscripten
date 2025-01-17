@@ -1,0 +1,13 @@
+{
+	"name": "dev environment",
+	"dockerFile": "Dockerfile",
+	"settings": {
+		"lldb.executable": "/usr/bin/lldb"
+	},
+	"extensions": [
+		"dtsvet.vscode-wasm",
+		"ms-vscode.cmake-tools",
+		"ms-vscode.cpptools-extension-pack",
+		"vadimcn.vscode-lldb"
+	]
+}

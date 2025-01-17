@@ -110,8 +110,12 @@ jobs:
     - name: test binaryen-lit
       run: python out/bin/binaryen-lit -vv test/lit/parse-error.wast
 
-    - name: test
-      run: python check.py --binaryen-bin=out/bin
+    # XXX disable momentarily to verify the below stage fails - name: test
+    # XXX  run: python check.py --binaryen-bin=out/bin
+
+    - name: verify auto-updating causes no changes
+      run: ./auto_update_tests.py lit | git diff -- test/
+      if: matrix.os == 'ubuntu-latest'
 
   build-clang:
     name: clang (LTO)

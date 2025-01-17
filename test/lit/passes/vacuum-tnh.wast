@@ -113,7 +113,7 @@
       )
     )
 
-    (i32.const 1)
+    (i32.const 999) ;; XXX intentional error to check CI
   )
 
   ;; A helper function for the above, that returns nothing.

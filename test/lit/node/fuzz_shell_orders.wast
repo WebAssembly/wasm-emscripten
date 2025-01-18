@@ -32,7 +32,7 @@
 ;; Append another run with a seed that leads to a different order
 ;;
 ;; RUN: cp %S/../../../scripts/fuzz_shell.js %t.js
-;; RUN: echo "callExports(1337);" >> %t.js
+;; RUN: echo "callExports(34);" >> %t.js
 ;; RUN: node %t.js %t.wasm | filecheck %s --check-prefix=APPENDED
 ;;
 ;; The original order: a,b,c

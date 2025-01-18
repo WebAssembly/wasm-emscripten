@@ -387,27 +387,12 @@ function hashCombine(seed, value) {
 /* async */ function callExports(ordering) {
   // Call the exports we were told, or if we were not given an explicit list,
   // call them all.
-  var relevantExports = exportsToCall || exportList;
+  let relevantExports = exportsToCall || exportList;
 
-  if (ordering !== undefined) {
-    // Copy the list, and sort it in the simple Fisher-Yates manner.
-    // https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle#The_modern_algorithm
-    relevantExports = relevantExports.slice(0);
-    for (var i = 0; i < relevantExports.length - 1; i++) {
-      // Pick the index of the item to place at index |i|.
-      ordering = hashCombine(ordering, i);
-      // The number of items to pick from begins at the full length, then
-      // decreases with i.
-      var j = i + (ordering % (relevantExports.length - i));
-      // Swap the item over here.
-      var t = relevantExports[j];
-      relevantExports[j] = relevantExports[i];
-      relevantExports[i] = t;
-    }
-  }
-
-  for (var e of relevantExports) {
-    var name, value;
+  // Build the list of call tasks to run, one for each relevant export.
+  let tasks = [];
+  for (let e of relevantExports) {
+    let name, value;
     if (typeof e === 'string') {
       // We are given a string name to call. Look it up in the global namespace.
       name = e;
@@ -423,16 +408,74 @@ function hashCombine(seed, value) {
       continue;
     }
 
+    // A task is a name + a function to call. For an export, the function is
+    // simply a call of the export.
+    tasks.push({ name: name, func: /* async */ () => callFunc(value) });
+  }
+
+  // Reverse the array, so the first task is at the end, for efficient
+  // popping in the common case.
+  tasks.reverse();
+
+  // Execute tasks while they remain.
+  while (tasks.length) {
+    let task;
+    if (ordering === undefined) {
+      // Use the natural order.
+      task = tasks.pop();
+    } else {
+      // Pick a random task.
+      ordering = hashCombine(ordering, tasks.length);
+      let i = ordering % tasks.length;
+      task = tasks.splice(i, 1)[0];
+    }
+
+    // Execute the task.
+    console.log('[fuzz-exec] calling ' + task.name);
+    let result;
     try {
-      console.log('[fuzz-exec] calling ' + name);
-      // TODO: Based on |ordering|, do not always await, leaving a promise
-      //       for later, so we interleave stacks.
-      var result = /* await */ callFunc(value);
-      if (typeof result !== 'undefined') {
-        console.log('[fuzz-exec] note result: ' + name + ' => ' + printed(result));
-      }
+      result = task.func();
     } catch (e) {
       console.log('exception thrown: ' + e);
+      continue;
+    }
+
+    if (JSPI) {
+      // When we are changing up the order, in JSPI we can also leave some
+      // promises unresolved until later, which lets us interleave them. Note we
+      // never defer a task more than once (which would be pointless), and we
+      // also only defer a promise (which we check for using .then).
+      if (ordering !== undefined && !task.deferred && result &&
+          typeof result == 'object' && typeof result.then === 'function') {
+        // Hash with -1 here, just to get something different than the hashing a
+        // few lines above.
+        ordering = hashCombine(ordering, -1);
+        if (ordering & 1) {
+          // Defer it for later. Reuse the existing task for simplicity.
+          console.log(`(jspi: defer ${task.name})`);
+          task.func = /* async */ () => {
+            console.log(`(jspi: finish ${task.name})`);
+            return /* await */ result;
+          };
+          task.deferred = true;
+          tasks.push(task);
+          continue;
+        }
+        // Otherwise, continue down.
+      }
+
+      // Await it right now.
+      try {
+        result = /* await */ result;
+      } catch (e) {
+        console.log('exception thrown: ' + e);
+        continue;
+      }
+    }
+
+    // Log the result.
+    if (typeof result !== 'undefined') {
+      console.log('[fuzz-exec] note result: ' + task.name + ' => ' + printed(result));
     }
   }
 }

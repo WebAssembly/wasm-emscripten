@@ -1006,3 +1006,57 @@
     (loop (nop))
   )
 )
+
+;; Test that no attempt is made to outline overlapping repeat substrings
+(module
+  (func $a
+    (drop (i32.add
+      (i32.const 0)
+      (i32.const 1)
+    ))
+    (drop (i32.sub
+      (i32.const 2)
+      (i32.const 3)
+    ))
+    (drop (i32.mul
+      (i32.const 4)
+      (i32.const 5)
+    ))
+    (drop (i32.div_u
+      (i32.const 6)
+      (i32.const 7)
+    ))
+    (drop (i32.add
+      (i32.const 0)
+      (i32.const 1)
+    ))
+    (drop (i32.sub
+      (i32.const 2)
+      (i32.const 3)
+    ))
+    (drop (i32.mul
+      (i32.const 4)
+      (i32.const 5)
+    ))
+    (drop (i32.div_u
+      (i32.const 6)
+      (i32.const 7)
+    ))
+    (drop (i32.sub
+      (i32.const 2)
+      (i32.const 3)
+    ))
+    (drop (i32.mul
+      (i32.const 4)
+      (i32.const 5)
+    ))
+    (drop (i32.sub
+      (i32.const 2)
+      (i32.const 3)
+    ))
+    (drop (i32.mul
+      (i32.const 4)
+      (i32.const 5)
+    ))
+  )
+)

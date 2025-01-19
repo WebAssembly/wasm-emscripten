@@ -244,6 +244,10 @@
 //      Logs out instrumentation decisions to the console. This can help figure
 //      out why a certain function was instrumented.
 //
+//   --pass-arg=asyncify-memory@memory
+//      Picks which exported memory of the module to store and load data from
+//      and to (useful if the module contains multiple memories).
+//
 // For manual fine-tuning of the list of instrumented functions, there are lists
 // that you can set. These must be used carefully, as misuse can break your
 // application - for example, if a function is called that should be
@@ -1648,14 +1652,31 @@ struct Asyncify : public Pass {
     auto propagateAddList = hasArgument("asyncify-propagate-addlist");
 
     // Ensure there is a memory, as we need it.
+
     if (secondaryMemory) {
       auto secondaryMemorySizeString =
         getArgumentOrDefault("asyncify-secondary-memory-size", "1");
       Address secondaryMemorySize = std::stoi(secondaryMemorySizeString);
       asyncifyMemory = createSecondaryMemory(module, secondaryMemorySize);
     } else {
-      MemoryUtils::ensureExists(module);
-      asyncifyMemory = module->memories[0]->name;
+      if (module->memories.size() <= 1) {
+        MemoryUtils::ensureExists(module);
+        asyncifyMemory = module->memories[0]->name;
+      } else {
+        auto asyncifyMemoryValue =
+          getArgumentOrDefault("asyncify-memory", "memory");
+        for (auto& theExport : module->exports) {
+          if (theExport->kind == ExternalKind::Memory &&
+              theExport->name == asyncifyMemoryValue) {
+            asyncifyMemory = theExport->value;
+            break;
+          }
+        }
+        if (!asyncifyMemory) {
+          Fatal() << "Please specify which of the multiple memories to use, "
+                     "with --pass-arg=asyncify-memory@memory";
+        }
+      }
     }
     pointerType =
       module->getMemory(asyncifyMemory)->is64() ? Type::i64 : Type::i32;

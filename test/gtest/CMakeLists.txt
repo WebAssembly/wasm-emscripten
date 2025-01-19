@@ -20,6 +20,9 @@ set(unittest_SOURCES
   wat-lexer.cpp
   validator.cpp
 )
+if(CMAKE_CXX_STANDARD GREATER_EQUAL 20)
+  list(APPEND unittest_SOURCES coro.cpp)
+endif()
 
 # suffix_tree.cpp includes LLVM header using std::iterator (deprecated in C++17)
 if (NOT MSVC)

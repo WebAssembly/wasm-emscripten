@@ -39,6 +39,7 @@
 
 #include "support/istring.h"
 #include "support/safe_integer.h"
+#include "support/utilities.h"
 
 namespace json {
 
@@ -257,12 +258,22 @@ struct Value {
     while (*curr && is_json_space(*curr))                                      \
       curr++;                                                                  \
   }
+#define skip_escaped_characters(ptr)                                           \
+  while (*ptr && *ptr != '"') {                                                \
+    if (*ptr == '\\' && *(ptr + 1)) {                                          \
+      ptr++;                                                                   \
+    }                                                                          \
+    ptr++;                                                                     \
+  }
     skip();
     if (*curr == '"') {
       // String
       curr++;
-      char* close = strchr(curr, '"');
-      assert(close);
+      char* close = curr;
+      skip_escaped_characters(close);
+      if (!(*close == '"')) {
+        wasm::Fatal() << "Assertion failed (close == '\"') ";
+      }
       *close = 0; // end this string, and reuse it straight from the input
       setString(curr);
       curr = close + 1;
@@ -305,20 +316,37 @@ struct Value {
       skip();
       setObject();
       while (*curr != '}') {
-        assert(*curr == '"');
-        curr++;
-        char* close = strchr(curr, '"');
-        assert(close);
-        *close = 0; // end this string, and reuse it straight from the input
-        IString key(curr);
-        curr = close + 1;
-        skip();
-        assert(*curr == ':');
-        curr++;
-        skip();
-        Ref value = Ref(new Value());
-        curr = value->parse(curr);
-        (*obj)[key] = value;
+        if (*curr == '"') {
+          curr++;
+          char* close = curr;
+          skip_escaped_characters(close);
+          if (!(*close == '"')) {
+            wasm::Fatal() << "Assertion failed (close == '\"') ";
+          }
+          *close = 0; // end this string, and reuse it straight from the input
+          IString key(curr);
+          curr = close + 1;
+          skip();
+          assert(*curr == ':');
+          curr++;
+          skip();
+          Ref value = Ref(new Value());
+          curr = value->parse(curr);
+          (*obj)[key] = value;
+        } else {
+          // Unquoted key
+          char* start = curr;
+          while (*curr && *curr != ':' && !is_json_space(*curr)) {
+            curr++;
+          }
+          assert(*curr == ':');
+          IString key(std::string(start, curr - start).c_str());
+          curr++;
+          skip();
+          Ref value = Ref(new Value());
+          curr = value->parse(curr);
+          (*obj)[key] = value;
+        }
         skip();
         if (*curr == '}') {
           break;

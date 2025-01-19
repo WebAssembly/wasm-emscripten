@@ -1,0 +1,13 @@
+[
+  {
+    name: "root",
+    reaches: [
+      "f"
+    ],
+    root: true
+  },
+  {
+    "name": "f",
+    "export": "f"
+  }
+]

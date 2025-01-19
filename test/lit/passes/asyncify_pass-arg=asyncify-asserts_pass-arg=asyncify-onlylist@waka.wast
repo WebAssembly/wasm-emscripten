@@ -11,9 +11,9 @@
 (module
   ;; CHECK:      (type $f (func))
   (type $f (func))
-  ;; CHECK:      (type $1 (func (param i32)))
+  ;; CHECK:      (type $1 (func (result i32)))
 
-  ;; CHECK:      (type $2 (func (result i32)))
+  ;; CHECK:      (type $2 (func (param i32)))
 
   ;; CHECK:      (import "env" "import" (func $import))
   (import "env" "import" (func $import))
@@ -26,6 +26,8 @@
 
   (table funcref (elem $calls-import2-drop $calls-import2-drop))
   ;; CHECK:      (global $__asyncify_state (mut i32) (i32.const 0))
+
+  ;; CHECK:      (global $__asyncify_catch_counter (mut i32) (i32.const 0))
 
   ;; CHECK:      (global $__asyncify_data (mut i32) (i32.const 0))
 
@@ -44,6 +46,8 @@
   ;; CHECK:      (export "asyncify_stop_rewind" (func $asyncify_stop_rewind))
 
   ;; CHECK:      (export "asyncify_get_state" (func $asyncify_get_state))
+
+  ;; CHECK:      (export "asyncify_get_catch_counter" (func $asyncify_get_catch_counter))
 
   ;; CHECK:      (func $calls-import
   ;; CHECK-NEXT:  (local $0 i32)
@@ -154,6 +158,15 @@
 )
 
 ;; CHECK:      (func $asyncify_start_unwind (param $0 i32)
+;; CHECK-NEXT:  (if
+;; CHECK-NEXT:   (i32.ne
+;; CHECK-NEXT:    (global.get $__asyncify_catch_counter)
+;; CHECK-NEXT:    (i32.const 0)
+;; CHECK-NEXT:   )
+;; CHECK-NEXT:   (then
+;; CHECK-NEXT:    (unreachable)
+;; CHECK-NEXT:   )
+;; CHECK-NEXT:  )
 ;; CHECK-NEXT:  (global.set $__asyncify_state
 ;; CHECK-NEXT:   (i32.const 1)
 ;; CHECK-NEXT:  )
@@ -237,4 +250,8 @@
 
 ;; CHECK:      (func $asyncify_get_state (result i32)
 ;; CHECK-NEXT:  (global.get $__asyncify_state)
+;; CHECK-NEXT: )
+
+;; CHECK:      (func $asyncify_get_catch_counter (result i32)
+;; CHECK-NEXT:  (global.get $__asyncify_catch_counter)
 ;; CHECK-NEXT: )

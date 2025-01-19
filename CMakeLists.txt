@@ -408,6 +408,7 @@ add_subdirectory(src/ir)
 add_subdirectory(src/asmjs)
 add_subdirectory(src/cfg)
 add_subdirectory(src/emscripten-optimizer)
+add_subdirectory(src/interpreter)
 add_subdirectory(src/passes)
 add_subdirectory(src/parser)
 add_subdirectory(src/support)
@@ -439,7 +440,8 @@ set(binaryen_objs
     $<TARGET_OBJECTS:cfg>
     $<TARGET_OBJECTS:support>
     $<TARGET_OBJECTS:analysis>
-    $<TARGET_OBJECTS:parser>)
+    $<TARGET_OBJECTS:parser>
+    $<TARGET_OBJECTS:interpreter>)
 
 if(BUILD_LLVM_DWARF)
   SET(binaryen_objs ${binaryen_objs} $<TARGET_OBJECTS:llvm_dwarf>)
@@ -481,7 +483,7 @@ if(EMSCRIPTEN)
   # binaryen.js WebAssembly variant
   add_executable(binaryen_wasm
                  ${binaryen_SOURCES})
-  target_link_libraries(binaryen_wasm wasm asmjs emscripten-optimizer passes ir cfg support analysis parser wasm)
+  target_link_libraries(binaryen_wasm wasm asmjs emscripten-optimizer passes ir cfg support analysis parser interpreter wasm)
   target_link_libraries(binaryen_wasm "-sFILESYSTEM")
   target_link_libraries(binaryen_wasm "-sEXPORT_NAME=Binaryen")
   target_link_libraries(binaryen_wasm "-sNODERAWFS=0")
@@ -511,7 +513,7 @@ if(EMSCRIPTEN)
   # binaryen.js JavaScript variant
   add_executable(binaryen_js
                  ${binaryen_SOURCES})
-  target_link_libraries(binaryen_js wasm asmjs emscripten-optimizer passes ir cfg support analysis parser wasm)
+  target_link_libraries(binaryen_js wasm asmjs emscripten-optimizer passes ir cfg support analysis parser interpreter wasm)
   target_link_libraries(binaryen_js "-sWASM=0")
   target_link_libraries(binaryen_js "-sWASM_ASYNC_COMPILATION=0")
   if(${CMAKE_CXX_COMPILER_VERSION} STREQUAL "6.0.1")

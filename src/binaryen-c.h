@@ -706,7 +706,9 @@ BinaryenBlock(BinaryenModuleRef module,
               BinaryenExpressionRef* children,
               BinaryenIndex numChildren,
               BinaryenType type);
-// If: ifFalse can be NULL
+// If: ifFalse can be NULL.
+// Result: A (result) clause will automatically be added if both ifTrue and ifFalse
+//         return concrete types. If ifFalse is NULL, no (result) type will be added
 BINARYEN_API BinaryenExpressionRef BinaryenIf(BinaryenModuleRef module,
                                               BinaryenExpressionRef condition,
                                               BinaryenExpressionRef ifTrue,

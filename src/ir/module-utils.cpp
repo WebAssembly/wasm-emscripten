@@ -605,8 +605,7 @@ void classifyTypeVisibility(Module& wasm,
     }
   };
 
-  // TODO: Consider Tags as well, but they should store HeapTypes instead of
-  // Signatures first.
+  ModuleUtils::iterImportedTags(wasm, [&](Tag* tag) { notePublic(tag->type); });
   ModuleUtils::iterImportedTables(wasm, [&](Table* table) {
     assert(table->type.isRef());
     notePublic(table->type.getHeapType());
@@ -647,7 +646,7 @@ void classifyTypeVisibility(Module& wasm,
         continue;
       }
       case ExternalKind::Tag:
-        // TODO
+        notePublic(wasm.getTag(ex->value)->type);
         continue;
       case ExternalKind::Invalid:
         break;
